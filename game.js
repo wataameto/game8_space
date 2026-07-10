@@ -1007,6 +1007,7 @@ function updateHUD() {
 }
 
 function startGame(mode = '3D') {
+  console.log("startGame: Launching game in mode: " + mode);
   initAudio();
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume();
@@ -1170,11 +1171,14 @@ function setupControls() {
   });
 
   // Screen interactive click buttons
+  console.log("setupControls: Binding btnStart3d: " + !!dom.btnStart3d);
   dom.btnStart3d.addEventListener('click', () => {
+    console.log("setupControls: btnStart3d clicked!");
     startGame('3D');
   });
 
   dom.btnStart2d.addEventListener('click', () => {
+    console.log("setupControls: btnStart2d clicked!");
     startGame('2D');
   });
 
@@ -1499,9 +1503,17 @@ function updateExplosions(dt) {
 // SYSTEM INITIATION
 // ==========================================================================
 function initGameSystem() {
-  initScene();
-  setupControls();
-  animate();
+  console.log("initGameSystem: Starting initial sync...");
+  try {
+    initScene();
+    console.log("initGameSystem: initScene completed.");
+    setupControls();
+    console.log("initGameSystem: setupControls completed.");
+    animate();
+    console.log("initGameSystem: animate loop running.");
+  } catch (err) {
+    console.error("initGameSystem error during startup:", err);
+  }
 }
 
 if (document.readyState === 'loading') {

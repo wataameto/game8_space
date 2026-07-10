@@ -254,8 +254,7 @@ body, html {
 .menu-panel {
   max-width: 500px;
   width: 90%;
-  background: var(--color-panel-bg);
-  backdrop-filter: blur(15px);
+  background: rgba(10, 11, 24, 0.93);
   border: 2px solid var(--color-cyan);
   box-shadow: var(--neon-border-cyan), 0 10px 30px rgba(0, 0, 0, 0.8);
   border-radius: 16px;
@@ -308,6 +307,7 @@ body, html {
   border-radius: 4px;
   cursor: pointer;
   position: relative;
+  z-index: 999;
   overflow: hidden;
   transition: all 0.3s;
   box-shadow: var(--neon-border-cyan);
