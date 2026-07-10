@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Three.jsで描画された美麗な3D宇宙空間を自機を操り駆け抜ける、レトロフューチャーなSF3Dシューティングゲーム。">
+  <title>NEON STARFIGHTER 3D | レトロフューチャー 3Dシューティング</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Three.js Canvas Container -->
+  <main id="canvas-container" aria-label="ゲーム画面"></main>
+
+  <!-- Damage Visual Flash Effect Layer -->
+  <div id="damage-flash-layer" class="damage-flash" style="display: none;" aria-hidden="true"></div>
+
+  <!-- HUD Overlay Layer (Active during gameplay) -->
+  <div class="ui-layer">
+    <div id="hud" aria-label="ヘッドアップディスプレイ">
+      <!-- Top HUD Panel: Shields, Score, Weapon info -->
+      <header class="hud-top">
+        <!-- Shield Integrity Bar -->
+        <div class="hud-panel hud-shield-panel">
+          <div id="shield-label" class="hud-label">SHIELD INTEGRITY</div>
+          <div class="shield-container" aria-labelledby="shield-label">
+            <div id="hud-shield-bar" class="shield-bar" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <!-- Current Score & High Score -->
+        <div class="hud-panel hud-score-panel">
+          <div class="hud-label">SCORE</div>
+          <div id="hud-score" class="hud-value">000,000</div>
+        </div>
+
+        <!-- Weapon System Info -->
+        <div class="hud-panel hud-weapon-panel">
+          <div class="hud-label">WEAPON SYSTEM</div>
+          <div class="weapon-status">
+            <span class="weapon-dot" id="weapon-status-dot"></span>
+            <span id="hud-weapon-type">LASER LV1</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Sight / Crosshair in the center of the screen -->
+      <div class="hud-center-sight" aria-hidden="true"></div>
+
+      <!-- Bottom HUD Panel: Control Hints -->
+      <footer class="hud-bottom">
+        <div class="control-hint">
+          [W,A,S,D / 矢印キー]: 移動 | [SPACE / マウスクリック]: レーザー発射
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Title/Start Screen Overlay -->
+  <section id="title-screen" class="screen-overlay active" aria-labelledby="game-title">
+    <div class="menu-panel interactive">
+      <h1 id="game-title" class="title-cyber">NEON STARFIGHTER</h1>
+      <p class="subtitle-cyber">3D SPACE SHOOTER</p>
+
+      <button id="btn-start" class="btn-cyber" type="button">LAUNCH MISSION</button>
+
+      <div class="controls-card">
+        <h3>CONTROLS</h3>
+        <ul>
+          <li><span>移動 (上下左右)</span> <span class="key-cap">W A S D</span> または <span class="key-cap">↑ ↓ ← →</span></li>
+          <li><span>レーザー発射</span> <span class="key-cap">SPACE</span> または <span class="key-cap">マウスクリック</span></li>
+          <li><span>ゲーム開始 / 再スタート</span> <span class="key-cap">ENTER</span></li>
+        </ul>
+      </div>
+
+      <div class="menu-stats">
+        <div class="stat-item">
+          <span class="stat-label">HIGH SCORE</span>
+          <span id="title-highscore" class="stat-value">000,000</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Game Over Screen Overlay -->
+  <section id="gameover-screen" class="screen-overlay" aria-labelledby="gameover-title">
+    <div class="menu-panel interactive">
+      <h2 id="gameover-title" class="title-cyber">MISSION FAILED</h2>
+      <p class="subtitle-cyber">STARFIGHTER DESTROYED</p>
+
+      <div class="menu-stats">
+        <div class="stat-item">
+          <span class="stat-label">FINAL SCORE</span>
+          <span id="gameover-score" class="stat-value">000,000</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">SHIPS DESTROYED</span>
+          <span id="gameover-kills" class="stat-value">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">HIGH SCORE</span>
+          <span id="gameover-highscore" class="stat-value">000,000</span>
+        </div>
+      </div>
+
+      <button id="btn-restart" class="btn-cyber" type="button">REDEPLOY</button>
+    </div>
+  </section>
+
+  <!-- Include Three.js via ES Modules and Game script -->
+  <script type="module" src="game.js"></script>
+</body>
+</html>

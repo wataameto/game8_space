@@ -1,0 +1,14 @@
+{
+  "name": "neon-starfighter-3d",
+  "version": "1.0.0",
+  "description": "A retro-futuristic 3D space shooter built with Three.js",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

@@ -1,0 +1,480 @@
+/* ==========================================================================
+   FUTURISTIC NEON SF INTERFACE - STYLE SYSTEM
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+:root {
+  --color-cyan: #00f0ff;
+  --color-cyan-glow: rgba(0, 240, 255, 0.4);
+  --color-magenta: #ff0055;
+  --color-magenta-glow: rgba(255, 0, 85, 0.4);
+  --color-yellow: #ffea00;
+  --color-yellow-glow: rgba(255, 234, 0, 0.4);
+  --color-green: #39ff14;
+  --color-green-glow: rgba(57, 255, 20, 0.4);
+  --color-bg-dark: #06060e;
+  --color-panel-bg: rgba(10, 11, 24, 0.75);
+  
+  --font-display: 'Orbitron', -apple-system, sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+  
+  --neon-border-cyan: 0 0 10px var(--color-cyan-glow), inset 0 0 10px var(--color-cyan-glow);
+  --neon-border-magenta: 0 0 10px var(--color-magenta-glow), inset 0 0 10px var(--color-magenta-glow);
+  --neon-text-cyan: 0 0 5px rgba(0, 240, 255, 0.5), 0 0 10px rgba(0, 240, 255, 0.3);
+  --neon-text-magenta: 0 0 5px rgba(255, 0, 85, 0.5), 0 0 10px rgba(255, 0, 85, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--color-bg-dark);
+  font-family: var(--font-display);
+  color: #ffffff;
+}
+
+/* Three.js Canvas Container */
+#canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* UI Overlays */
+.ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Interactive elements need pointer-events */
+.interactive {
+  pointer-events: auto;
+}
+
+/* HUD System (In-Game UI) */
+#hud {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 30px;
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+#hud.active {
+  opacity: 1;
+}
+
+.hud-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.hud-panel {
+  background: var(--color-panel-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  box-shadow: var(--neon-border-cyan);
+  padding: 12px 20px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.hud-score-panel {
+  min-width: 160px;
+}
+
+.hud-label {
+  font-size: 0.75rem;
+  color: var(--color-cyan);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+  text-shadow: var(--neon-text-cyan);
+}
+
+.hud-value {
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+/* Shield Bar */
+.hud-shield-panel {
+  width: 280px;
+}
+
+.shield-container {
+  width: 100%;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-cyan);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+  box-shadow: 0 0 5px rgba(0, 240, 255, 0.2);
+}
+
+.shield-bar {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--color-cyan), var(--color-green));
+  box-shadow: 0 0 10px var(--color-cyan-glow);
+  transition: width 0.2s cubic-bezier(0.1, 0.8, 0.3, 1), background-color 0.3s;
+}
+
+.shield-bar.warning {
+  background: linear-gradient(90deg, var(--color-magenta), #ff5500);
+  box-shadow: 0 0 10px var(--color-magenta-glow);
+}
+
+/* Weapon Heat / Power Panel */
+.hud-weapon-panel {
+  min-width: 150px;
+}
+
+.weapon-status {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  color: var(--color-yellow);
+  text-shadow: var(--neon-text-yellow);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weapon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-yellow);
+  box-shadow: 0 0 8px var(--color-yellow);
+  animation: pulse 1s infinite alternate;
+}
+
+/* HUD Center Crosshair/Overlay (Optional, adds SF look) */
+.hud-center-sight {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 100px;
+  pointer-events: none;
+  opacity: 0.15;
+  transition: opacity 0.5s;
+}
+
+.hud-center-sight::before, .hud-center-sight::after {
+  content: '';
+  position: absolute;
+  border: 1px solid var(--color-cyan);
+  border-radius: 50%;
+}
+
+.hud-center-sight::before {
+  top: 10px; left: 10px; right: 10px; bottom: 10px;
+  border-style: dashed;
+}
+
+.hud-center-sight::after {
+  top: 45px; left: 45px; right: 45px; bottom: 45px;
+}
+
+.hud-bottom {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding-bottom: 10px;
+}
+
+.control-hint {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Screen States (Menus) */
+.screen-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 20;
+  background: radial-gradient(circle, rgba(15, 16, 35, 0.8) 0%, rgba(5, 5, 12, 0.95) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.screen-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.menu-panel {
+  max-width: 500px;
+  width: 90%;
+  background: var(--color-panel-bg);
+  backdrop-filter: blur(15px);
+  border: 2px solid var(--color-cyan);
+  box-shadow: var(--neon-border-cyan), 0 10px 30px rgba(0, 0, 0, 0.8);
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(20px);
+  transition: transform 0.4s ease;
+}
+
+.screen-overlay.active .menu-panel {
+  transform: translateY(0);
+}
+
+/* Neon Text Styles */
+.title-cyber {
+  font-size: 3rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  margin-bottom: 10px;
+  color: #ffffff;
+  text-shadow: 0 0 10px var(--color-cyan), 0 0 20px var(--color-cyan-glow), 0 0 40px rgba(0, 240, 255, 0.2);
+  animation: titleGlow 2.5s infinite alternate;
+}
+
+.subtitle-cyber {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--color-yellow);
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  margin-bottom: 30px;
+  text-shadow: 0 0 5px var(--color-yellow-glow);
+}
+
+/* Cyber Button */
+.btn-cyber {
+  font-family: var(--font-display);
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: #ffffff;
+  background: transparent;
+  border: 1px solid var(--color-cyan);
+  padding: 15px 40px;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  box-shadow: var(--neon-border-cyan);
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.btn-cyber::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.4), transparent);
+  transition: all 0.5s;
+}
+
+.btn-cyber:hover {
+  background: rgba(0, 240, 255, 0.1);
+  box-shadow: 0 0 20px var(--color-cyan), inset 0 0 10px var(--color-cyan);
+  text-shadow: 0 0 5px #ffffff;
+}
+
+.btn-cyber:hover::before {
+  left: 100%;
+}
+
+.btn-cyber:active {
+  transform: scale(0.95);
+}
+
+/* Custom layout for GameOver Screen */
+#gameover-screen .menu-panel {
+  border-color: var(--color-magenta);
+  box-shadow: var(--neon-border-magenta), 0 10px 30px rgba(0, 0, 0, 0.8);
+}
+
+#gameover-screen .title-cyber {
+  color: #ffffff;
+  text-shadow: 0 0 10px var(--color-magenta), 0 0 20px var(--color-magenta-glow);
+  animation: titleGlowMagenta 1.5s infinite alternate;
+}
+
+#gameover-screen .btn-cyber {
+  border-color: var(--color-magenta);
+  box-shadow: var(--neon-border-magenta);
+}
+
+#gameover-screen .btn-cyber:hover {
+  background: rgba(255, 0, 85, 0.15);
+  box-shadow: 0 0 20px var(--color-magenta), inset 0 0 10px var(--color-magenta);
+}
+
+/* Stats list in menus */
+.menu-stats {
+  width: 100%;
+  margin: 20px 0 30px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--color-yellow);
+}
+
+/* Instructions / Controls Info Graph */
+.controls-card {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+  width: 100%;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.controls-card h3 {
+  font-size: 0.85rem;
+  color: var(--color-cyan);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.controls-card ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.controls-card li {
+  display: flex;
+  justify-content: space-between;
+}
+
+.key-cap {
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--color-cyan);
+}
+
+/* Animations */
+@keyframes titleGlow {
+  from {
+    text-shadow: 0 0 10px var(--color-cyan), 0 0 20px rgba(0, 240, 255, 0.4), 0 0 30px rgba(0, 240, 255, 0.2);
+  }
+  to {
+    text-shadow: 0 0 15px var(--color-cyan), 0 0 30px rgba(0, 240, 255, 0.6), 0 0 50px rgba(0, 240, 255, 0.3), 0 0 70px rgba(0, 240, 255, 0.1);
+  }
+}
+
+@keyframes titleGlowMagenta {
+  from {
+    text-shadow: 0 0 10px var(--color-magenta), 0 0 20px rgba(255, 0, 85, 0.4);
+  }
+  to {
+    text-shadow: 0 0 15px var(--color-magenta), 0 0 30px rgba(255, 0, 85, 0.6), 0 0 45px rgba(255, 0, 85, 0.3);
+  }
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.6;
+    box-shadow: 0 0 4px var(--color-yellow);
+  }
+  to {
+    opacity: 1;
+    box-shadow: 0 0 12px var(--color-yellow);
+  }
+}
+
+@keyframes flashRed {
+  0% { background-color: rgba(255, 0, 85, 0); }
+  50% { background-color: rgba(255, 0, 85, 0.25); }
+  100% { background-color: rgba(255, 0, 85, 0); }
+}
+
+.damage-flash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  animation: flashRed 0.3s ease-out;
+}
