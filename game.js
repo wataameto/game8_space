@@ -1498,8 +1498,14 @@ function updateExplosions(dt) {
 // ==========================================================================
 // SYSTEM INITIATION
 // ==========================================================================
-window.addEventListener('DOMContentLoaded', () => {
+function initGameSystem() {
   initScene();
   setupControls();
   animate();
-});
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', initGameSystem);
+} else {
+  initGameSystem();
+}
