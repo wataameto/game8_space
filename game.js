@@ -70,24 +70,24 @@ let dirLight, ambientLight, playerEngineLight;
 // Audio Context (Initialized on user interaction)
 let audioCtx = null;
 
-// DOM Elements
+// DOM Elements (Using getters for lazy loading to prevent early null values)
 const dom = {
-  hud: document.getElementById('hud'),
-  hudShieldBar: document.getElementById('hud-shield-bar'),
-  hudScore: document.getElementById('hud-score'),
-  hudWeaponType: document.getElementById('hud-weapon-type'),
-  weaponStatusDot: document.getElementById('weapon-status-dot'),
-  titleScreen: document.getElementById('title-screen'),
-  titleHighScore: document.getElementById('title-highscore'),
-  btnStart3d: document.getElementById('btn-start-3d'),
-  btnStart2d: document.getElementById('btn-start-2d'),
-  gameoverScreen: document.getElementById('gameover-screen'),
-  gameoverScore: document.getElementById('gameover-score'),
-  gameoverKills: document.getElementById('gameover-kills'),
-  gameoverHighScore: document.getElementById('gameover-highscore'),
-  btnRestart3d: document.getElementById('btn-restart-3d'),
-  btnRestart2d: document.getElementById('btn-restart-2d'),
-  damageFlashLayer: document.getElementById('damage-flash-layer')
+  get hud() { return document.getElementById('hud'); },
+  get hudShieldBar() { return document.getElementById('hud-shield-bar'); },
+  get hudScore() { return document.getElementById('hud-score'); },
+  get hudWeaponType() { return document.getElementById('hud-weapon-type'); },
+  get weaponStatusDot() { return document.getElementById('weapon-status-dot'); },
+  get titleScreen() { return document.getElementById('title-screen'); },
+  get titleHighScore() { return document.getElementById('title-highscore'); },
+  get btnStart3d() { return document.getElementById('btn-start-3d'); },
+  get btnStart2d() { return document.getElementById('btn-start-2d'); },
+  get gameoverScreen() { return document.getElementById('gameover-screen'); },
+  get gameoverScore() { return document.getElementById('gameover-score'); },
+  get gameoverKills() { return document.getElementById('gameover-kills'); },
+  get gameoverHighScore() { return document.getElementById('gameover-highscore'); },
+  get btnRestart3d() { return document.getElementById('btn-restart-3d'); },
+  get btnRestart2d() { return document.getElementById('btn-restart-2d'); },
+  get damageFlashLayer() { return document.getElementById('damage-flash-layer'); }
 };
 
 // ==========================================================================
