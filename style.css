@@ -13,6 +13,8 @@
   --color-yellow-glow: rgba(255, 234, 0, 0.4);
   --color-green: #39ff14;
   --color-green-glow: rgba(57, 255, 20, 0.4);
+  --color-purple: #bd00ff;
+  --color-purple-glow: rgba(189, 0, 255, 0.4);
   --color-bg-dark: #06060e;
   --color-panel-bg: rgba(10, 11, 24, 0.75);
   
@@ -21,6 +23,7 @@
   
   --neon-border-cyan: 0 0 10px var(--color-cyan-glow), inset 0 0 10px var(--color-cyan-glow);
   --neon-border-magenta: 0 0 10px var(--color-magenta-glow), inset 0 0 10px var(--color-magenta-glow);
+  --neon-border-purple: 0 0 10px var(--color-purple-glow), inset 0 0 10px var(--color-purple-glow);
   --neon-text-cyan: 0 0 5px rgba(0, 240, 255, 0.5), 0 0 10px rgba(0, 240, 255, 0.3);
   --neon-text-magenta: 0 0 5px rgba(255, 0, 85, 0.5), 0 0 10px rgba(255, 0, 85, 0.3);
 }
@@ -335,6 +338,39 @@ body, html {
 
 .btn-cyber:active {
   transform: scale(0.95);
+}
+
+/* Mode Selection Layout */
+.mode-select-container {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.mode-select-container .btn-cyber {
+  margin: 0;
+  flex: 1;
+  min-width: 180px;
+}
+
+/* 2D Cyber Button variant */
+.btn-cyber.btn-2d {
+  border-color: var(--color-purple);
+  box-shadow: var(--neon-border-purple);
+}
+
+.btn-cyber.btn-2d::before {
+  background: linear-gradient(90deg, transparent, rgba(189, 0, 255, 0.4), transparent);
+}
+
+.btn-cyber.btn-2d:hover {
+  background: rgba(189, 0, 255, 0.1);
+  box-shadow: 0 0 20px var(--color-purple), inset 0 0 10px var(--color-purple);
+  text-shadow: 0 0 5px #ffffff;
 }
 
 /* Custom layout for GameOver Screen */

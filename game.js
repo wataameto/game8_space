@@ -34,6 +34,7 @@ const GAME_CONFIG = {
 // ==========================================================================
 let state = {
   mode: 'TITLE',        // TITLE, PLAYING, GAMEOVER
+  gameMode: '3D',       // 3D, 2D
   score: 0,
   highScore: parseInt(localStorage.getItem('neon_starfighter_high') || '0'),
   kills: 0,
@@ -78,12 +79,14 @@ const dom = {
   weaponStatusDot: document.getElementById('weapon-status-dot'),
   titleScreen: document.getElementById('title-screen'),
   titleHighScore: document.getElementById('title-highscore'),
-  btnStart: document.getElementById('btn-start'),
+  btnStart3d: document.getElementById('btn-start-3d'),
+  btnStart2d: document.getElementById('btn-start-2d'),
   gameoverScreen: document.getElementById('gameover-screen'),
   gameoverScore: document.getElementById('gameover-score'),
   gameoverKills: document.getElementById('gameover-kills'),
   gameoverHighScore: document.getElementById('gameover-highscore'),
-  btnRestart: document.getElementById('btn-restart'),
+  btnRestart3d: document.getElementById('btn-restart-3d'),
+  btnRestart2d: document.getElementById('btn-restart-2d'),
   damageFlashLayer: document.getElementById('damage-flash-layer')
 };
 
@@ -778,7 +781,7 @@ function spawnEnemy() {
     const data = createAsteroidMesh();
     // Spawn in random X/Y within playfield, far back in Z
     const rx = (Math.random() - 0.5) * GAME_CONFIG.player.rangeX * 2.2;
-    const ry = (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 2.2;
+    const ry = state.gameMode === '3D' ? (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 2.2 : 0;
     
     data.mesh.position.set(rx, ry, -280);
     scene.add(data.mesh);
@@ -801,7 +804,7 @@ function spawnEnemy() {
   else if (roll < adjustedAsteroidRate + adjustedDroneRate) {
     const droneMesh = createEnemyDrone();
     const rx = (Math.random() - 0.5) * GAME_CONFIG.player.rangeX * 1.8;
-    const ry = (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 1.8;
+    const ry = state.gameMode === '3D' ? (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 1.8 : 0;
     
     droneMesh.position.set(rx, ry, -280);
     scene.add(droneMesh);
@@ -824,7 +827,7 @@ function spawnEnemy() {
     const itemMesh = createItemMesh(itemType);
     
     const rx = (Math.random() - 0.5) * GAME_CONFIG.player.rangeX * 1.5;
-    const ry = (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 1.5;
+    const ry = state.gameMode === '3D' ? (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 1.5 : 0;
     
     itemMesh.position.set(rx, ry, -260);
     scene.add(itemMesh);
@@ -862,11 +865,12 @@ function fireLaser() {
   // LV3: Triple shots (center + dual side spread)
   
   const shipPos = playerGroup.position;
+  const launchY = state.gameMode === '3D' ? shipPos.y : 0;
 
   if (state.weaponLevel === 1 || state.weaponLevel === 3) {
     // Center shot
     const laserMesh = new THREE.Mesh(laserGeom, laserMat);
-    laserMesh.position.set(shipPos.x, shipPos.y + 0.1, shipPos.z - 2);
+    laserMesh.position.set(shipPos.x, launchY + (state.gameMode === '3D' ? 0.1 : 0), shipPos.z - 2);
     scene.add(laserMesh);
     
     lasers.push({
@@ -878,12 +882,12 @@ function fireLaser() {
   if (state.weaponLevel >= 2) {
     // Left Cannon Bolt
     const leftLaser = new THREE.Mesh(laserGeom, laserMat);
-    leftLaser.position.set(shipPos.x - 2.8, shipPos.y - 0.1, shipPos.z - 0.5);
+    leftLaser.position.set(shipPos.x - 2.8, launchY - (state.gameMode === '3D' ? 0.1 : 0), shipPos.z - 0.5);
     scene.add(leftLaser);
     
     // Right Cannon Bolt
     const rightLaser = new THREE.Mesh(laserGeom, laserMat);
-    rightLaser.position.set(shipPos.x + 2.8, shipPos.y - 0.1, shipPos.z - 0.5);
+    rightLaser.position.set(shipPos.x + 2.8, launchY - (state.gameMode === '3D' ? 0.1 : 0), shipPos.z - 0.5);
     scene.add(rightLaser);
 
     // Spread slightly outward in LV3
@@ -912,15 +916,28 @@ function damagePlayer(amount) {
     dom.damageFlashLayer.style.display = 'none';
   }, 150);
 
-  // Camera Shake
+  // Camera Shake (Respects mode dimensions)
+  const baseCamX = camera.position.x;
+  const baseCamY = camera.position.y;
+  const baseCamZ = camera.position.z;
+
   const shakeTimer = setInterval(() => {
-    camera.position.x = (Math.random() - 0.5) * 0.8;
-    camera.position.y = (Math.random() - 0.5) * 0.8;
+    if (state.gameMode === '3D') {
+      camera.position.x = baseCamX + (Math.random() - 0.5) * 0.8;
+      camera.position.y = baseCamY + (Math.random() - 0.5) * 0.8;
+    } else {
+      camera.position.x = baseCamX + (Math.random() - 0.5) * 0.8;
+      camera.position.z = baseCamZ + (Math.random() - 0.5) * 0.8;
+    }
   }, 30);
 
   setTimeout(() => {
     clearInterval(shakeTimer);
-    camera.position.set(0, 0, 15); // Return to default
+    if (state.gameMode === '3D') {
+      camera.position.set(0, 0, 15);
+    } else {
+      camera.position.set(0, 42, -5);
+    }
   }, 250);
 
   // Downgrade weapon level on hit (adds risk/reward)
@@ -989,13 +1006,14 @@ function updateHUD() {
   dom.weaponStatusDot.style.boxShadow = `0 0 10px ${dotColor}`;
 }
 
-function startGame() {
+function startGame(mode = '3D') {
   initAudio();
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
 
   state.mode = 'PLAYING';
+  state.gameMode = mode;
   state.score = 0;
   state.kills = 0;
   state.shield = 100;
@@ -1018,7 +1036,21 @@ function startGame() {
   if (!playerGroup) {
     playerGroup = createPlayerShip();
   }
-  playerGroup.position.set(0, 0, 0);
+
+  // Camera and ship initialization based on mode
+  if (state.gameMode === '3D') {
+    scene.fog = new THREE.FogExp2(0x06060e, 0.0035);
+    camera.position.set(0, 0, 15);
+    camera.rotation.set(0, 0, 0);
+    playerGroup.position.set(0, 0, 0);
+  } else {
+    // 2D Top-Down Mode: Camera looking straight down from Y=42
+    scene.fog = null;
+    camera.position.set(0, 42, -5);
+    camera.rotation.set(-Math.PI / 2, 0, 0);
+    playerGroup.position.set(0, 0, 0); // Y stays 0
+  }
+  
   playerGroup.rotation.set(0, 0, 0);
   scene.add(playerGroup);
 
@@ -1027,19 +1059,48 @@ function startGame() {
   dom.gameoverScreen.classList.remove('active');
   dom.hud.classList.add('active');
 
-  // Short cool transition (Roll ship 360 to show off 3D meshes)
+  // Short cool transition
   let rollStart = 0;
   const launchAnim = () => {
     if (state.mode !== 'PLAYING') return;
     rollStart += 0.15;
     if (rollStart < Math.PI * 2) {
-      playerGroup.rotation.z = rollStart;
+      if (state.gameMode === '3D') {
+        playerGroup.rotation.z = rollStart;
+      } else {
+        playerGroup.rotation.y = rollStart;
+      }
       requestAnimationFrame(launchAnim);
     } else {
-      playerGroup.rotation.z = 0;
+      playerGroup.rotation.set(0, 0, 0);
     }
   };
   launchAnim();
+
+  // Re-align stars based on mode
+  resetStarfieldForMode();
+}
+
+function resetStarfieldForMode() {
+  if (!starGeometry) return;
+  const posArr = starGeometry.attributes.position.array;
+  const count = GAME_CONFIG.starfield.count;
+
+  for (let i = 0; i < count; i++) {
+    if (state.gameMode === '3D') {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 10 + Math.random() * 90;
+      posArr[i * 3] = Math.cos(angle) * radius;
+      posArr[i * 3 + 1] = Math.sin(angle) * radius;
+      posArr[i * 3 + 2] = -Math.random() * GAME_CONFIG.starfield.depth;
+    } else {
+      // 2D Mode: Distribute stars on a flat plane below the player (Y = -15)
+      posArr[i * 3] = (Math.random() - 0.5) * 80;
+      posArr[i * 3 + 1] = -15; // Flat plane below gameplay
+      posArr[i * 3 + 2] = -Math.random() * GAME_CONFIG.starfield.depth;
+    }
+  }
+  starGeometry.attributes.position.needsUpdate = true;
 }
 
 function gameOver() {
@@ -1081,10 +1142,8 @@ function setupControls() {
     }
 
     if (e.key === 'Enter') {
-      if (state.mode === 'TITLE') {
-        startGame();
-      } else if (state.mode === 'GAMEOVER') {
-        startGame();
+      if (state.mode === 'TITLE' || state.mode === 'GAMEOVER') {
+        startGame(state.gameMode || '3D');
       }
     }
   });
@@ -1111,12 +1170,20 @@ function setupControls() {
   });
 
   // Screen interactive click buttons
-  dom.btnStart.addEventListener('click', () => {
-    startGame();
+  dom.btnStart3d.addEventListener('click', () => {
+    startGame('3D');
   });
 
-  dom.btnRestart.addEventListener('click', () => {
-    startGame();
+  dom.btnStart2d.addEventListener('click', () => {
+    startGame('2D');
+  });
+
+  dom.btnRestart3d.addEventListener('click', () => {
+    startGame('3D');
+  });
+
+  dom.btnRestart2d.addEventListener('click', () => {
+    startGame('2D');
   });
 
   // Display highscore on Title Screen initially
@@ -1159,33 +1226,52 @@ function handlePlayerMovement(dt) {
   if (!playerGroup) return;
 
   let moveX = 0;
-  let moveY = 0;
+  let moveY = 0; // In 2D mode, this maps to Z axis movement
 
   if (keys.a || keys.ArrowLeft)  moveX = -1;
   if (keys.d || keys.ArrowRight) moveX = 1;
-  if (keys.w || keys.ArrowUp)    moveY = 1;
-  if (keys.s || keys.ArrowDown)  moveY = -1;
+  if (keys.w || keys.ArrowUp)    moveY = 1;  // Moves forward/up-screen (Z-)
+  if (keys.s || keys.ArrowDown)  moveY = -1; // Moves backward/down-screen (Z+)
 
-  // Compute target position based on frame velocity
-  const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
-  const targetY = playerGroup.position.y + moveY * GAME_CONFIG.player.speed * dt;
+  if (state.gameMode === '3D') {
+    // 3D Mode: Move on XY Plane
+    const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
+    const targetY = playerGroup.position.y + moveY * GAME_CONFIG.player.speed * dt;
 
-  // Clamp target positions strictly to visible bounds
-  playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
-  playerGroup.position.y = Math.max(-GAME_CONFIG.player.rangeY, Math.min(GAME_CONFIG.player.rangeY, targetY));
+    // Clamp target positions strictly to visible bounds
+    playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
+    playerGroup.position.y = Math.max(-GAME_CONFIG.player.rangeY, Math.min(GAME_CONFIG.player.rangeY, targetY));
+    playerGroup.position.z = 0;
 
-  // Visual tilt effects (Roll/Pitch based on direction)
-  // Moving sideways rolls (rotates Z) the ship. Moving vertically pitches (rotates X).
-  const targetRoll = -moveX * GAME_CONFIG.player.rollLimit;
-  const targetPitch = moveY * GAME_CONFIG.player.pitchLimit;
+    // Visual tilt effects (Roll/Pitch based on direction)
+    const targetRoll = -moveX * GAME_CONFIG.player.rollLimit;
+    const targetPitch = moveY * GAME_CONFIG.player.pitchLimit;
 
-  // Smooth lerp angles for sleek space flight control feel
-  playerGroup.rotation.z = THREE.MathUtils.lerp(playerGroup.rotation.z, targetRoll, GAME_CONFIG.player.lerpSpeed * dt);
-  playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, targetPitch, GAME_CONFIG.player.lerpSpeed * dt);
+    // Smooth lerp angles for sleek space flight control feel
+    playerGroup.rotation.z = THREE.MathUtils.lerp(playerGroup.rotation.z, targetRoll, GAME_CONFIG.player.lerpSpeed * dt);
+    playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, targetPitch, GAME_CONFIG.player.lerpSpeed * dt);
+    playerGroup.rotation.y = THREE.MathUtils.lerp(playerGroup.rotation.y, 0, GAME_CONFIG.player.lerpSpeed * dt);
 
-  // Subtle natural hovering sway (sine wave overlay on Y)
-  const hoverOffset = Math.sin(performance.now() * 0.0035) * 0.15;
-  playerGroup.position.y += hoverOffset * dt * 6;
+    // Subtle natural hovering sway (sine wave overlay on Y)
+    const hoverOffset = Math.sin(performance.now() * 0.0035) * 0.15;
+    playerGroup.position.y += hoverOffset * dt * 6;
+  } else {
+    // 2D Top-Down Mode: Move on XZ Plane, Y stays 0
+    const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
+    const targetZ = playerGroup.position.z - moveY * GAME_CONFIG.player.speed * dt; // W moves Z-, S moves Z+
+
+    playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
+    playerGroup.position.z = Math.max(-25, Math.min(8, targetZ));
+    playerGroup.position.y = 0;
+
+    // 2D Tilt: Roll (Z rotation) when banking left/right. Yaw (Y rotation) slightly.
+    const targetRoll = -moveX * GAME_CONFIG.player.rollLimit * 0.8;
+    const targetYaw = moveX * 0.15;
+
+    playerGroup.rotation.z = THREE.MathUtils.lerp(playerGroup.rotation.z, targetRoll, GAME_CONFIG.player.lerpSpeed * dt);
+    playerGroup.rotation.y = THREE.MathUtils.lerp(playerGroup.rotation.y, targetYaw, GAME_CONFIG.player.lerpSpeed * dt);
+    playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, 0, GAME_CONFIG.player.lerpSpeed * dt);
+  }
 
   // Update dynamic fire plume particles behind jet nozzles
   updateEngineFlame(dt, playerGroup.position);
