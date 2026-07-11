@@ -52,6 +52,22 @@ const keys = {
   Space: false, Enter: false
 };
 
+// Pointer/Touch Controls State
+let pointerControl = {
+  active: false,
+  targetX: 0,
+  targetY: 0 // Will map to Y in 3D, Z in 2D
+};
+
+// Cinematic Camera Intro State
+let cameraIntro = {
+  active: false,
+  timer: 0,
+  duration: 1.3, // seconds
+  startPos: new THREE.Vector3(),
+  endPos: new THREE.Vector3()
+};
+
 // WebGL Global Objects
 let scene, camera, renderer, clock;
 let starPoints, starGeometry;
@@ -61,6 +77,7 @@ let playerGroup;        // Contains cockpit, wings, engines, lights
 let engineFlameParticles = [];
 const lasers = [];
 const enemies = [];
+const enemyProjectiles = []; // Track enemy bullet meshes and velocities
 const explosions = [];
 const items = [];
 
@@ -786,6 +803,12 @@ function spawnEnemy() {
     data.mesh.position.set(rx, ry, -280);
     scene.add(data.mesh);
 
+    // Cache original materials for hit flash
+    const originalMaterials = new Map();
+    data.mesh.traverse(child => {
+      if (child.isMesh) originalMaterials.set(child, child.material);
+    });
+
     enemies.push({
       mesh: data.mesh,
       type: 'ASTEROID',
@@ -797,7 +820,9 @@ function spawnEnemy() {
         x: (Math.random() - 0.5) * 1.5,
         y: (Math.random() - 0.5) * 1.5,
         z: (Math.random() - 0.5) * 1.5
-      }
+      },
+      originalMaterials,
+      flashTime: 0
     });
   } 
   // Spawn enemy flight drone
@@ -809,15 +834,24 @@ function spawnEnemy() {
     droneMesh.position.set(rx, ry, -280);
     scene.add(droneMesh);
 
+    // Cache original materials for hit flash
+    const originalMaterials = new Map();
+    droneMesh.traverse(child => {
+      if (child.isMesh) originalMaterials.set(child, child.material);
+    });
+
     enemies.push({
       mesh: droneMesh,
       type: 'DRONE',
       radius: 1.1,
       speed: 65 + Math.random() * 45 * state.difficultyMultiplier,
-      hp: 1, // Drones die easily but maneuver
-      maxHp: 1,
+      hp: 2, // 2 HP so player sees hit flash
+      maxHp: 2,
       hoverOffset: Math.random() * Math.PI * 2, // Smooth sinusoidal hovering
-      rotationSpeed: { x: 0, y: 0, z: (Math.random() - 0.5) * 2 }
+      rotationSpeed: { x: 0, y: 0, z: (Math.random() - 0.5) * 2 },
+      originalMaterials,
+      flashTime: 0,
+      lastShootTime: performance.now() + Math.random() * 1500 // Delay first shot
     });
   }
 
@@ -904,6 +938,29 @@ function fireLaser() {
   }
 }
 
+function triggerScreenFlash(colorRGBA, durationMs) {
+  const flash = dom.damageFlashLayer;
+  if (!flash) return;
+  
+  flash.style.display = 'block';
+  flash.style.backgroundColor = colorRGBA;
+  flash.style.transition = 'none';
+  flash.style.opacity = '1';
+  
+  // Force browser layout reflow
+  flash.offsetHeight;
+  
+  flash.style.transition = `background-color ${durationMs}ms ease-out, opacity ${durationMs}ms ease-out`;
+  flash.style.backgroundColor = 'rgba(0,0,0,0)';
+  flash.style.opacity = '0';
+  
+  setTimeout(() => {
+    if (flash.style.opacity === '0') {
+      flash.style.display = 'none';
+    }
+  }, durationMs);
+}
+
 function damagePlayer(amount) {
   if (state.mode !== 'PLAYING') return;
 
@@ -911,10 +968,7 @@ function damagePlayer(amount) {
   playDamageSound();
   
   // Flash Screen UI Red
-  dom.damageFlashLayer.style.display = 'block';
-  setTimeout(() => {
-    dom.damageFlashLayer.style.display = 'none';
-  }, 150);
+  triggerScreenFlash('rgba(255, 0, 85, 0.35)', 250);
 
   // Camera Shake (Respects mode dimensions)
   const baseCamX = camera.position.x;
@@ -958,9 +1012,11 @@ function collectPowerup(itemType) {
   if (itemType === 'SHIELD') {
     state.shield = Math.min(state.maxShield, state.shield + 35);
     addScore(150);
+    triggerScreenFlash('rgba(57, 255, 20, 0.15)', 200); // Shiny green flash on recovery
   } else if (itemType === 'WEAPON') {
     state.weaponLevel = Math.min(3, state.weaponLevel + 1);
     addScore(250);
+    triggerScreenFlash('rgba(255, 234, 0, 0.15)', 200); // Cyber yellow flash on weapon upgrade
   }
   updateHUD();
 }
@@ -1028,6 +1084,8 @@ function startGame(mode = '3D') {
   enemies.length = 0;
   lasers.forEach(l => scene.remove(l.mesh));
   lasers.length = 0;
+  enemyProjectiles.forEach(p => scene.remove(p.mesh));
+  enemyProjectiles.length = 0;
   items.forEach(i => scene.remove(i.mesh));
   items.length = 0;
   explosions.forEach(exp => scene.remove(exp.points));
@@ -1038,18 +1096,29 @@ function startGame(mode = '3D') {
     playerGroup = createPlayerShip();
   }
 
-  // Camera and ship initialization based on mode
+  // Camera Cinematic Intro setup
+  cameraIntro.active = true;
+  cameraIntro.timer = 0;
+
   if (state.gameMode === '3D') {
     scene.fog = new THREE.FogExp2(0x06060e, 0.0035);
-    camera.position.set(0, 0, 15);
-    camera.rotation.set(0, 0, 0);
-    playerGroup.position.set(0, 0, 0);
+    
+    // Start camera far away and high up
+    cameraIntro.startPos.set(0, 22, 50);
+    cameraIntro.endPos.set(0, 0, 15);
+    
+    camera.position.copy(cameraIntro.startPos);
+    playerGroup.position.set(0, 0, 15); // Start far back to glide in
   } else {
-    // 2D Top-Down Mode: Camera looking straight down from Y=42
+    // 2D Top-Down Mode
     scene.fog = null;
-    camera.position.set(0, 42, -5);
-    camera.rotation.set(-Math.PI / 2, 0, 0);
-    playerGroup.position.set(0, 0, 0); // Y stays 0
+    
+    // Start camera high up in orbit
+    cameraIntro.startPos.set(0, 95, 20);
+    cameraIntro.endPos.set(0, 42, -5);
+    
+    camera.position.copy(cameraIntro.startPos);
+    playerGroup.position.set(0, 0, 15); // Start far back to glide in
   }
   
   playerGroup.rotation.set(0, 0, 0);
@@ -1158,17 +1227,45 @@ function setupControls() {
     }
   });
 
-  // Tap-to-fire on mouse click
-  window.addEventListener('mousedown', (e) => {
-    if (state.mode === 'PLAYING') {
-      initAudio();
-      keys.Space = true;
-    }
-  });
+  // Unified Pointer (Mouse/Touch) Controls for Mobile & Desktop Drag-to-Move
+  const handlePointerDown = (e) => {
+    if (state.mode !== 'PLAYING' || cameraIntro.active) return;
+    // Don't intercept UI button clicks
+    if (e.target.closest('button') || e.target.closest('.menu-panel')) return;
+    
+    initAudio();
+    pointerControl.active = true;
+    keys.Space = true; // Auto-fire while dragging
+    updatePointerTarget(e);
+  };
 
-  window.addEventListener('mouseup', () => {
+  const handlePointerMove = (e) => {
+    if (!pointerControl.active) return;
+    updatePointerTarget(e);
+  };
+
+  const handlePointerUp = () => {
+    pointerControl.active = false;
     keys.Space = false;
-  });
+  };
+
+  function updatePointerTarget(e) {
+    const nx = (e.clientX / window.innerWidth) * 2 - 1;
+    const ny = (e.clientY / window.innerHeight) * 2 - 1;
+    
+    pointerControl.targetX = nx * GAME_CONFIG.player.rangeX * 1.35;
+    if (state.gameMode === '3D') {
+      pointerControl.targetY = -ny * GAME_CONFIG.player.rangeY * 1.25;
+    } else {
+      // Map vertical screen coordinate ny [-1, 1] to Z bounds [-25, 8]
+      pointerControl.targetY = ny * 16.5 - 8.5;
+    }
+  }
+
+  window.addEventListener('pointerdown', handlePointerDown);
+  window.addEventListener('pointermove', handlePointerMove);
+  window.addEventListener('pointerup', handlePointerUp);
+  window.addEventListener('pointercancel', handlePointerUp);
 
   // Screen interactive click buttons
   console.log("setupControls: Binding btnStart3d: " + !!dom.btnStart3d);
@@ -1203,19 +1300,31 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.1); // Clamp delta time to avoid huge leaps
   
   if (state.mode === 'PLAYING') {
-    handlePlayerMovement(dt);
-    
-    if (keys.Space) {
-      fireLaser();
+    if (cameraIntro.active) {
+      updateCameraIntro(dt);
+      
+      // Auto-glide ship forward from bottom during cinematic camera entrance
+      if (playerGroup) {
+        // Smoothly bring ship from starting Z position (15) to Z=0 position
+        playerGroup.position.z = THREE.MathUtils.lerp(playerGroup.position.z, 0, 4 * dt);
+        updateEngineFlame(dt, playerGroup.position);
+      }
+    } else {
+      handlePlayerMovement(dt);
+      
+      if (keys.Space) {
+        fireLaser();
+      }
+      
+      spawnEnemy();
     }
-    
-    spawnEnemy();
   }
 
   // Universal Updates running regardless of game mode
   updateStarfield(dt);
   updateLasers(dt);
   updateEnemies(dt);
+  updateEnemyProjectiles(dt); // Run enemy bullet movements & hits
   updateItems(dt);
   updateExplosions(dt);
 
@@ -1232,22 +1341,72 @@ function handlePlayerMovement(dt) {
   let moveX = 0;
   let moveY = 0; // In 2D mode, this maps to Z axis movement
 
-  if (keys.a || keys.ArrowLeft)  moveX = -1;
-  if (keys.d || keys.ArrowRight) moveX = 1;
-  if (keys.w || keys.ArrowUp)    moveY = 1;  // Moves forward/up-screen (Z-)
-  if (keys.s || keys.ArrowDown)  moveY = -1; // Moves backward/down-screen (Z+)
+  if (pointerControl.active) {
+    // POINTER/DRAG CONTROLS (for Mobile and Drag-to-Move)
+    const lerpFactor = 7.0 * dt; // Smooth follow factor
+    
+    const targetX = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, pointerControl.targetX));
+    
+    if (state.gameMode === '3D') {
+      const targetY = Math.max(-GAME_CONFIG.player.rangeY, Math.min(GAME_CONFIG.player.rangeY, pointerControl.targetY));
+      
+      const newX = THREE.MathUtils.lerp(playerGroup.position.x, targetX, lerpFactor);
+      const newY = THREE.MathUtils.lerp(playerGroup.position.y, targetY, lerpFactor);
+      
+      // Compute delta move for tilting calculations
+      moveX = (newX - playerGroup.position.x) / (GAME_CONFIG.player.speed * dt || 0.001);
+      moveY = (newY - playerGroup.position.y) / (GAME_CONFIG.player.speed * dt || 0.001);
+      
+      playerGroup.position.x = newX;
+      playerGroup.position.y = newY;
+      playerGroup.position.z = 0;
+    } else {
+      // 2D Mode: targetY controls the Z coordinate
+      const targetZ = Math.max(-25, Math.min(8, pointerControl.targetY));
+      
+      const newX = THREE.MathUtils.lerp(playerGroup.position.x, targetX, lerpFactor);
+      const newZ = THREE.MathUtils.lerp(playerGroup.position.z, targetZ, lerpFactor);
+      
+      moveX = (newX - playerGroup.position.x) / (GAME_CONFIG.player.speed * dt || 0.001);
+      moveY = -(newZ - playerGroup.position.z) / (GAME_CONFIG.player.speed * dt || 0.001); // Z- moves forward
+      
+      playerGroup.position.x = newX;
+      playerGroup.position.z = newZ;
+      playerGroup.position.y = 0;
+    }
+    
+    // Clamp simulated inputs for tilts
+    moveX = Math.max(-1.0, Math.min(1.0, moveX));
+    moveY = Math.max(-1.0, Math.min(1.0, moveY));
+  } else {
+    // STANDARD KEYBOARD CONTROLS
+    if (keys.a || keys.ArrowLeft)  moveX = -1;
+    if (keys.d || keys.ArrowRight) moveX = 1;
+    if (keys.w || keys.ArrowUp)    moveY = 1;  // Moves forward/up-screen (Z-)
+    if (keys.s || keys.ArrowDown)  moveY = -1; // Moves backward/down-screen (Z+)
 
+    if (state.gameMode === '3D') {
+      // 3D Mode: Move on XY Plane
+      const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
+      const targetY = playerGroup.position.y + moveY * GAME_CONFIG.player.speed * dt;
+
+      // Clamp target positions strictly to visible bounds
+      playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
+      playerGroup.position.y = Math.max(-GAME_CONFIG.player.rangeY, Math.min(GAME_CONFIG.player.rangeY, targetY));
+      playerGroup.position.z = 0;
+    } else {
+      // 2D Top-Down Mode: Move on XZ Plane, Y stays 0
+      const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
+      const targetZ = playerGroup.position.z - moveY * GAME_CONFIG.player.speed * dt; // W moves Z-, S moves Z+
+
+      playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
+      playerGroup.position.z = Math.max(-25, Math.min(8, targetZ));
+      playerGroup.position.y = 0;
+    }
+  }
+
+  // Common rotation and sway calculations
   if (state.gameMode === '3D') {
-    // 3D Mode: Move on XY Plane
-    const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
-    const targetY = playerGroup.position.y + moveY * GAME_CONFIG.player.speed * dt;
-
-    // Clamp target positions strictly to visible bounds
-    playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
-    playerGroup.position.y = Math.max(-GAME_CONFIG.player.rangeY, Math.min(GAME_CONFIG.player.rangeY, targetY));
-    playerGroup.position.z = 0;
-
-    // Visual tilt effects (Roll/Pitch based on direction)
     const targetRoll = -moveX * GAME_CONFIG.player.rollLimit;
     const targetPitch = moveY * GAME_CONFIG.player.pitchLimit;
 
@@ -1260,14 +1419,6 @@ function handlePlayerMovement(dt) {
     const hoverOffset = Math.sin(performance.now() * 0.0035) * 0.15;
     playerGroup.position.y += hoverOffset * dt * 6;
   } else {
-    // 2D Top-Down Mode: Move on XZ Plane, Y stays 0
-    const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
-    const targetZ = playerGroup.position.z - moveY * GAME_CONFIG.player.speed * dt; // W moves Z-, S moves Z+
-
-    playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
-    playerGroup.position.z = Math.max(-25, Math.min(8, targetZ));
-    playerGroup.position.y = 0;
-
     // 2D Tilt: Roll (Z rotation) when banking left/right. Yaw (Y rotation) slightly.
     const targetRoll = -moveX * GAME_CONFIG.player.rollLimit * 0.8;
     const targetYaw = moveX * 0.15;
@@ -1324,6 +1475,8 @@ function updateLasers(dt) {
  * Update enemy drone and asteroid movements, spin, collisions
  */
 function updateEnemies(dt) {
+  const now = performance.now();
+
   for (let i = enemies.length - 1; i >= 0; i--) {
     const enemy = enemies[i];
     
@@ -1338,11 +1491,33 @@ function updateEnemies(dt) {
       
       // Face towards player slightly
       enemy.mesh.rotation.y = Math.sin(enemy.hoverOffset) * 0.4;
+
+      // Enemy drone shooting logic (only if active in screen view and player is playing)
+      if (state.mode === 'PLAYING' && enemy.mesh.position.z > -220 && enemy.mesh.position.z < -20 && !cameraIntro.active) {
+        const shootInterval = 2200 / state.difficultyMultiplier;
+        if (now - enemy.lastShootTime > shootInterval) {
+          enemy.lastShootTime = now;
+          spawnEnemyProjectile(enemy.mesh.position);
+        }
+      }
     } else {
       // Asteroids rotate chaoticly
       enemy.mesh.rotation.x += enemy.rotationSpeed.x * dt;
       enemy.mesh.rotation.y += enemy.rotationSpeed.y * dt;
       enemy.mesh.rotation.z += enemy.rotationSpeed.z * dt;
+    }
+
+    // Update hit flash timer
+    if (enemy.flashTime > 0) {
+      enemy.flashTime -= dt;
+      if (enemy.flashTime <= 0) {
+        // Restore original materials
+        enemy.mesh.traverse(child => {
+          if (child.isMesh && enemy.originalMaterials && enemy.originalMaterials.has(child)) {
+            child.material = enemy.originalMaterials.get(child);
+          }
+        });
+      }
     }
 
     // Check boundary cleanup
@@ -1353,7 +1528,7 @@ function updateEnemies(dt) {
     }
 
     // COLLISION DETECTION 1: Enemy vs Player
-    if (state.mode === 'PLAYING' && playerGroup) {
+    if (state.mode === 'PLAYING' && playerGroup && !cameraIntro.active) {
       const dist = enemy.mesh.position.distanceTo(playerGroup.position);
       // Average collision boundary threshold
       const colRadius = enemy.type === 'ASTEROID' ? enemy.radius + 1.2 : 2.0;
@@ -1392,12 +1567,22 @@ function updateEnemies(dt) {
 
         // Deduct health
         enemy.hp--;
+        enemy.flashTime = 0.08; // Flash for 80ms
+        
+        // Swap material to solid white MeshBasicMaterial
+        const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        enemy.mesh.traverse(child => {
+          if (child.isMesh) child.material = whiteMat;
+        });
         
         if (enemy.hp <= 0) {
           // Total annihilation
           const boomColor = enemy.type === 'ASTEROID' ? 0xb58960 : 0xff0055;
           spawnExplosion(enemy.mesh.position, boomColor, enemy.type === 'ASTEROID' ? 25 : 35);
           playExplosionSound();
+          
+          // White blast screen flash (adds huge visual crunch!)
+          triggerScreenFlash('rgba(255, 255, 255, 0.12)', 100);
           
           scene.remove(enemy.mesh);
           enemies.splice(i, 1);
@@ -1414,6 +1599,96 @@ function updateEnemies(dt) {
     }
 
     if (enemyDestroyed) continue;
+  }
+}
+
+// ==========================================================================
+// ENEMY PROJECTILES (PLASMA BULLETS FOR DRONES)
+// ==========================================================================
+function spawnEnemyProjectile(position) {
+  const geom = new THREE.SphereGeometry(0.45, 8, 8);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.copy(position);
+  scene.add(mesh);
+
+  const velocity = new THREE.Vector3();
+  velocity.subVectors(playerGroup.position, position);
+  
+  if (state.gameMode === '2D') {
+    velocity.y = 0; // Lock to flat 2D plane
+  }
+  
+  velocity.normalize().multiplyScalar(42 + state.difficultyMultiplier * 5); // Speed increases with difficulty
+
+  enemyProjectiles.push({ mesh, velocity });
+}
+
+function updateEnemyProjectiles(dt) {
+  for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+    const proj = enemyProjectiles[i];
+    proj.mesh.position.addScaledVector(proj.velocity, dt);
+
+    // Boundary cleanup
+    if (proj.mesh.position.z > 25 || proj.mesh.position.z < -300) {
+      scene.remove(proj.mesh);
+      proj.mesh.geometry.dispose();
+      proj.mesh.material.dispose();
+      enemyProjectiles.splice(i, 1);
+      continue;
+    }
+
+    // Collision check: Projectile vs Player
+    if (state.mode === 'PLAYING' && playerGroup && !cameraIntro.active) {
+      const dist = proj.mesh.position.distanceTo(playerGroup.position);
+      if (dist < 1.7) {
+        // Red impact explosion
+        spawnExplosion(proj.mesh.position, 0xff0055, 12);
+        
+        damagePlayer(12); // Take shield hit
+
+        scene.remove(proj.mesh);
+        proj.mesh.geometry.dispose();
+        proj.mesh.material.dispose();
+        enemyProjectiles.splice(i, 1);
+      }
+    }
+  }
+}
+
+// ==========================================================================
+// CINEMATIC INTRO TRANSITION ENGINE
+// ==========================================================================
+function updateCameraIntro(dt) {
+  if (!cameraIntro.active) return;
+
+  cameraIntro.timer += dt;
+  const pct = Math.min(1.0, cameraIntro.timer / cameraIntro.duration);
+
+  // Smooth cubic deceleration (ease-out-cubic)
+  const t = 1 - Math.pow(1 - pct, 3);
+
+  camera.position.lerpVectors(cameraIntro.startPos, cameraIntro.endPos, t);
+  
+  if (state.gameMode === '3D') {
+    camera.lookAt(playerGroup.position.x, playerGroup.position.y, playerGroup.position.z - 3);
+  } else {
+    // 2D look down
+    camera.lookAt(playerGroup.position.x, 0, playerGroup.position.z - 5);
+  }
+
+  // Stop intro when done
+  if (pct >= 1.0) {
+    cameraIntro.active = false;
+    
+    // Lock to precise positions
+    if (state.gameMode === '3D') {
+      camera.position.set(0, 0, 15);
+      camera.rotation.set(0, 0, 0);
+    } else {
+      camera.position.set(0, 42, -5);
+      camera.rotation.set(-Math.PI / 2, 0, 0);
+    }
   }
 }
 
