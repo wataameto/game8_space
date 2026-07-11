@@ -106,6 +106,8 @@ const dom = {
   get gameoverHighScore() { return document.getElementById('gameover-highscore'); },
   get btnRestart3d() { return document.getElementById('btn-restart-3d'); },
   get btnRestart2d() { return document.getElementById('btn-restart-2d'); },
+  get btnGameOverTitle() { return document.getElementById('btn-gameover-title'); },
+  get btnHudTitle() { return document.getElementById('btn-hud-title'); },
   get damageFlashLayer() { return document.getElementById('damage-flash-layer'); }
 };
 
@@ -1344,6 +1346,101 @@ function updateHUD() {
   dom.weaponStatusDot.style.boxShadow = `0 0 10px ${dotColor}`;
 }
 
+/**
+ * Return to Title Screen Menu and clean up active gameplay
+ */
+function returnToTitle() {
+  state.mode = 'TITLE';
+  
+  // Toggle UI visibility
+  dom.hud.classList.remove('active');
+  dom.gameoverScreen.classList.remove('active');
+  dom.titleScreen.classList.add('active');
+  
+  // Reset HUD Score and weapon type strings
+  dom.titleHighScore.textContent = String(state.highScore).padStart(6, '0');
+
+  // Reset Camera to menu default view
+  cameraIntro.active = false;
+  camera.position.set(0, 0, 15);
+  camera.rotation.set(0, 0, 0);
+  camera.quaternion.set(0, 0, 0, 1);
+
+  // Clean up WebGL game models
+  cleanupGameplay();
+}
+
+/**
+ * Dispose geometries and materials to avoid Three.js memory leaks
+ */
+function cleanupGameplay() {
+  // Clear enemies
+  enemies.forEach(e => {
+    scene.remove(e.mesh);
+    e.mesh.traverse(child => {
+      if (child.isMesh) {
+        child.geometry.dispose();
+        if (child.material.dispose) child.material.dispose();
+      }
+    });
+  });
+  enemies.length = 0;
+  
+  // Clear lasers
+  lasers.forEach(l => {
+    scene.remove(l.mesh);
+    l.mesh.geometry.dispose();
+    l.mesh.material.dispose();
+  });
+  lasers.length = 0;
+  
+  // Clear projectiles
+  enemyProjectiles.forEach(p => {
+    scene.remove(p.mesh);
+    p.mesh.geometry.dispose();
+    p.mesh.material.dispose();
+  });
+  enemyProjectiles.length = 0;
+  
+  // Clear items
+  items.forEach(item => {
+    scene.remove(item.mesh);
+    item.mesh.geometry.dispose();
+    item.mesh.material.dispose();
+  });
+  items.length = 0;
+  
+  // Clear explosions
+  explosions.forEach(exp => {
+    scene.remove(exp.points);
+    exp.points.geometry.dispose();
+    exp.points.material.dispose();
+  });
+  explosions.length = 0;
+
+  // Clear player ship
+  if (playerGroup) {
+    scene.remove(playerGroup);
+    playerGroup.traverse(child => {
+      if (child.isMesh) {
+        child.geometry.dispose();
+        if (child.material.dispose) child.material.dispose();
+      }
+    });
+    playerGroup = null;
+  }
+  
+  // Reset engine flame particles
+  engineFlameParticles.forEach(p => {
+    scene.remove(p.mesh);
+    p.mesh.geometry.dispose();
+    p.mesh.material.dispose();
+  });
+  engineFlameParticles = [];
+  
+  playerEngineLight = null;
+}
+
 function startGame(mode = '3D') {
   console.log("startGame: Launching game in mode: " + mode);
   initAudio();
@@ -1361,22 +1458,11 @@ function startGame(mode = '3D') {
   
   updateHUD();
 
-  // Clear existing scene elements
-  enemies.forEach(e => scene.remove(e.mesh));
-  enemies.length = 0;
-  lasers.forEach(l => scene.remove(l.mesh));
-  lasers.length = 0;
-  enemyProjectiles.forEach(p => scene.remove(p.mesh));
-  enemyProjectiles.length = 0;
-  items.forEach(i => scene.remove(i.mesh));
-  items.length = 0;
-  explosions.forEach(exp => scene.remove(exp.points));
-  explosions.length = 0;
+  // Unified cleanup of scene before starting
+  cleanupGameplay();
 
-  // Add/Reset Player Ship
-  if (!playerGroup) {
-    playerGroup = createPlayerShip();
-  }
+  // Create new Player Ship
+  playerGroup = createPlayerShip();
 
   // Camera Cinematic Intro setup
   cameraIntro.active = true;
@@ -1571,6 +1657,14 @@ function setupControls() {
     startGame('2D');
   });
 
+  dom.btnGameOverTitle.addEventListener('click', () => {
+    returnToTitle();
+  });
+
+  dom.btnHudTitle.addEventListener('click', () => {
+    returnToTitle();
+  });
+
   // Display highscore on Title Screen initially
   dom.titleHighScore.textContent = String(state.highScore).padStart(6, '0');
 }
@@ -1623,7 +1717,8 @@ function animate() {
     lasers,
     enemies,
     state,
-    keys
+    keys,
+    damagePlayer
   };
 }
 
