@@ -793,6 +793,8 @@ function spawnEnemy() {
   const adjustedAsteroidRate = GAME_CONFIG.spawn.asteroidRate * state.difficultyMultiplier;
   const adjustedDroneRate = GAME_CONFIG.spawn.enemyShipRate * state.difficultyMultiplier;
 
+  const scale = state.gameMode === '2D' ? 0.6 : 1.0;
+
   // Spawn asteroid
   if (roll < adjustedAsteroidRate) {
     const data = createAsteroidMesh();
@@ -801,6 +803,7 @@ function spawnEnemy() {
     const ry = state.gameMode === '3D' ? (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 2.2 : 0;
     
     data.mesh.position.set(rx, ry, -280);
+    data.mesh.scale.set(scale, scale, scale);
     scene.add(data.mesh);
 
     // Cache original materials for hit flash
@@ -812,7 +815,7 @@ function spawnEnemy() {
     enemies.push({
       mesh: data.mesh,
       type: 'ASTEROID',
-      radius: data.radius,
+      radius: data.radius * scale,
       speed: 40 + Math.random() * 50 * state.difficultyMultiplier,
       hp: Math.ceil(data.radius * 2), // Larger rocks need more hits
       maxHp: Math.ceil(data.radius * 2),
@@ -832,6 +835,7 @@ function spawnEnemy() {
     const ry = state.gameMode === '3D' ? (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 1.8 : 0;
     
     droneMesh.position.set(rx, ry, -280);
+    droneMesh.scale.set(scale, scale, scale);
     scene.add(droneMesh);
 
     // Cache original materials for hit flash
@@ -843,7 +847,7 @@ function spawnEnemy() {
     enemies.push({
       mesh: droneMesh,
       type: 'DRONE',
-      radius: 1.1,
+      radius: 1.1 * scale,
       speed: 65 + Math.random() * 45 * state.difficultyMultiplier,
       hp: 2, // 2 HP so player sees hit flash
       maxHp: 2,
@@ -864,13 +868,14 @@ function spawnEnemy() {
     const ry = state.gameMode === '3D' ? (Math.random() - 0.5) * GAME_CONFIG.player.rangeY * 1.5 : 0;
     
     itemMesh.position.set(rx, ry, -260);
+    itemMesh.scale.set(scale, scale, scale);
     scene.add(itemMesh);
 
     items.push({
       mesh: itemMesh,
       type: itemType,
       speed: 35,
-      radius: 1.2,
+      radius: 1.2 * scale,
       pulseTime: 0
     });
   }
@@ -899,15 +904,17 @@ function fireLaser() {
   // Get ship current yaw (always 0 in 3D mode)
   const shipYaw = playerGroup.rotation.y;
   const upAxis = new THREE.Vector3(0, 1, 0);
+  const scale = state.gameMode === '2D' ? 0.6 : 1.0;
 
   if (state.weaponLevel === 1 || state.weaponLevel === 3) {
-    // Center shot: offset (0, 0, -2) in local space
-    const localOffset = new THREE.Vector3(0, state.gameMode === '3D' ? 0.1 : 0, -2);
+    // Center shot: offset (0, 0, -2) in local space, scaled
+    const localOffset = new THREE.Vector3(0, state.gameMode === '3D' ? 0.1 : 0, -2 * scale);
     localOffset.applyAxisAngle(upAxis, shipYaw);
 
     const laserMesh = new THREE.Mesh(laserGeom, laserMat);
     laserMesh.position.copy(shipPos).add(localOffset);
     laserMesh.rotation.y = shipYaw; // Align cylinder mesh rotation
+    laserMesh.scale.set(scale, scale, scale); // Scale laser mesh
     scene.add(laserMesh);
     
     const velocity = new THREE.Vector3(0, 0, -GAME_CONFIG.laser.speed);
@@ -920,22 +927,24 @@ function fireLaser() {
   }
 
   if (state.weaponLevel >= 2) {
-    // Left Cannon local offset
-    const leftOffset = new THREE.Vector3(-2.8, state.gameMode === '3D' ? -0.1 : 0, -0.5);
+    // Left Cannon local offset, scaled
+    const leftOffset = new THREE.Vector3(-2.8 * scale, state.gameMode === '3D' ? -0.1 : 0, -0.5 * scale);
     leftOffset.applyAxisAngle(upAxis, shipYaw);
     
     const leftLaser = new THREE.Mesh(laserGeom, laserMat);
     leftLaser.position.copy(shipPos).add(leftOffset);
     leftLaser.rotation.y = shipYaw;
+    leftLaser.scale.set(scale, scale, scale); // Scale laser mesh
     scene.add(leftLaser);
     
-    // Right Cannon local offset
-    const rightOffset = new THREE.Vector3(2.8, state.gameMode === '3D' ? -0.1 : 0, -0.5);
+    // Right Cannon local offset, scaled
+    const rightOffset = new THREE.Vector3(2.8 * scale, state.gameMode === '3D' ? -0.1 : 0, -0.5 * scale);
     rightOffset.applyAxisAngle(upAxis, shipYaw);
     
     const rightLaser = new THREE.Mesh(laserGeom, laserMat);
     rightLaser.position.copy(shipPos).add(rightOffset);
     rightLaser.rotation.y = shipYaw;
+    rightLaser.scale.set(scale, scale, scale); // Scale laser mesh
     scene.add(rightLaser);
 
     // Spread slightly outward in LV3
@@ -1129,6 +1138,7 @@ function startGame(mode = '3D') {
     
     camera.position.copy(cameraIntro.startPos);
     playerGroup.position.set(0, 0, 15); // Start far back to glide in
+    playerGroup.scale.set(1.0, 1.0, 1.0); // Full size in 3D
   } else {
     // 2D Top-Down Mode
     scene.fog = null;
@@ -1139,6 +1149,7 @@ function startGame(mode = '3D') {
     
     camera.position.copy(cameraIntro.startPos);
     playerGroup.position.set(0, 0, 15); // Start far back to glide in
+    playerGroup.scale.set(0.6, 0.6, 0.6); // Compact size in 2D
   }
   
   playerGroup.rotation.set(0, 0, 0);
@@ -1618,8 +1629,9 @@ function updateEnemies(dt) {
       const laser = lasers[j];
       const distToLaser = enemy.mesh.position.distanceTo(laser.mesh.position);
       
-      // Laser hits enemy
-      const hitLimit = enemy.type === 'ASTEROID' ? enemy.radius + 0.8 : 1.3;
+      // Laser hits enemy (scaled in 2D)
+      const scale = state.gameMode === '2D' ? 0.6 : 1.0;
+      const hitLimit = enemy.type === 'ASTEROID' ? enemy.radius + 0.8 * scale : 1.3 * scale;
       if (distToLaser < hitLimit) {
         // Create small impact spark
         spawnExplosion(laser.mesh.position, 0x00f0ff, 8);
@@ -1675,6 +1687,9 @@ function spawnEnemyProjectile(position) {
   const mat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
   const mesh = new THREE.Mesh(geom, mat);
   mesh.position.copy(position);
+  
+  const scale = state.gameMode === '2D' ? 0.6 : 1.0;
+  mesh.scale.set(scale, scale, scale); // Scale enemy bullet size
   scene.add(mesh);
 
   const velocity = new THREE.Vector3();
@@ -1690,6 +1705,8 @@ function spawnEnemyProjectile(position) {
 }
 
 function updateEnemyProjectiles(dt) {
+  const scale = state.gameMode === '2D' ? 0.6 : 1.0;
+
   for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
     const proj = enemyProjectiles[i];
     proj.mesh.position.addScaledVector(proj.velocity, dt);
@@ -1703,10 +1720,11 @@ function updateEnemyProjectiles(dt) {
       continue;
     }
 
-    // Collision check: Projectile vs Player
+    // Collision check: Projectile vs Player (scaled threshold in 2D)
     if (state.mode === 'PLAYING' && playerGroup && !cameraIntro.active) {
       const dist = proj.mesh.position.distanceTo(playerGroup.position);
-      if (dist < 1.7) {
+      const hitLimit = 1.7 * scale;
+      if (dist < hitLimit) {
         // Red impact explosion
         spawnExplosion(proj.mesh.position, 0xff0055, 12);
         
@@ -1761,6 +1779,8 @@ function updateCameraIntro(dt) {
  * Powerups floating towards the screen
  */
 function updateItems(dt) {
+  const baseScale = state.gameMode === '2D' ? 0.6 : 1.0;
+
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
     item.mesh.position.z += item.speed * dt;
@@ -1769,10 +1789,10 @@ function updateItems(dt) {
     item.mesh.rotation.y += 2.0 * dt;
     item.mesh.rotation.x += 1.0 * dt;
 
-    // Sine pulsation size scaling
+    // Sine pulsation size scaling, respecting baseScale
     item.pulseTime += dt;
-    const scale = 1.0 + Math.sin(item.pulseTime * 6) * 0.15;
-    item.mesh.scale.set(scale, scale, scale);
+    const pulse = baseScale * (1.0 + Math.sin(item.pulseTime * 6) * 0.15);
+    item.mesh.scale.set(pulse, pulse, pulse);
 
     // Boundary cleanup
     if (item.mesh.position.z > 20) {
@@ -1781,16 +1801,17 @@ function updateItems(dt) {
       continue;
     }
 
-    // Collision Detection: Item vs Player
+    // Collision Detection: Item vs Player (scaled threshold in 2D)
     if (state.mode === 'PLAYING' && playerGroup) {
       const dist = item.mesh.position.distanceTo(playerGroup.position);
-      if (dist < 2.0) {
+      const collectRadius = 2.0 * baseScale;
+      if (dist < collectRadius) {
         // Collect!
         collectPowerup(item.type);
         
         // Mini sparks
         const sparkColor = item.type === 'SHIELD' ? 0x39ff14 : 0xffea00;
-        spawnExplosion(item.mesh.position, sparkColor, 15);
+        spawnExplosion(item.mesh.position, sparkColor, 10);
 
         scene.remove(item.mesh);
         items.splice(i, 1);
