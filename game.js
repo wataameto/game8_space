@@ -536,9 +536,10 @@ function initScene() {
   const width = window.innerWidth;
   const height = window.innerHeight;
 
-  // Scene
+  // Scene with beautiful sky blue background and atmospheric fog
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x06060e, 0.0035);
+  scene.background = new THREE.Color(0x3a9ad9); // Clear blue sky
+  scene.fog = new THREE.FogExp2(0x89c7f2, 0.0035); // Fog blending with sky at distance
 
   // Camera
   camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
@@ -556,66 +557,60 @@ function initScene() {
   // Clock
   clock = new THREE.Clock();
 
-  // Lights
-  ambientLight = new THREE.AmbientLight(0x181830, 1.2);
+  // Lights: Bright daylight settings
+  ambientLight = new THREE.AmbientLight(0xbde3ff, 1.4); // Sky reflection ambient
   scene.add(ambientLight);
 
-  dirLight = new THREE.DirectionalLight(0x00f0ff, 1.5);
-  dirLight.position.set(5, 10, 7);
+  dirLight = new THREE.DirectionalLight(0xfffaed, 2.0); // Strong golden sunlight
+  dirLight.position.set(15, 30, 10);
   scene.add(dirLight);
 
-  // Red/Magenta accent light coming from the far deep
-  const redDirectional = new THREE.DirectionalLight(0xff0055, 0.8);
-  redDirectional.position.set(-5, -5, -30);
-  scene.add(redDirectional);
+  // Soft blue directional bounce light from the earth below
+  const skyBounceLight = new THREE.DirectionalLight(0x73bbf2, 0.6);
+  skyBounceLight.position.set(-10, -20, -10);
+  scene.add(skyBounceLight);
 
-  // Build backgrounds and initial items
-  buildStarfield();
+  // Build cloud layer background instead of space stars
+  buildCloudfield();
   
   // Set up resize listener
   window.addEventListener('resize', onWindowResize);
 }
 
 /**
- * Builds the warping star background
+ * Builds the warping volumetric cloud background
  */
-function buildStarfield() {
-  const count = GAME_CONFIG.starfield.count;
+function buildCloudfield() {
+  const count = 180; // Volumetric clouds count
   starGeometry = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
   const velocities = new Float32Array(count);
 
   for (let i = 0; i < count; i++) {
-    // Distribute star coordinates in a tunnel around the path
-    const angle = Math.random() * Math.PI * 2;
-    // Radial distance from center (don't place inside the gameplay area too much)
-    const radius = 10 + Math.random() * 90;
-    
-    positions[i * 3] = Math.cos(angle) * radius;
-    positions[i * 3 + 1] = Math.sin(angle) * radius;
-    
-    // Spread along Z axis
+    // Spread clouds widely in the sky (X: -100 to 100, Y: -50 to 50, Z: -depth to 0)
+    positions[i * 3] = (Math.random() - 0.5) * 200;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
     positions[i * 3 + 2] = -Math.random() * GAME_CONFIG.starfield.depth;
     
-    // Velocity: stars farther out can move slightly slower/faster for depth illusion
-    velocities[i] = GAME_CONFIG.starfield.speed * (0.6 + Math.random() * 0.5);
+    // Cloud scroll speed
+    velocities[i] = GAME_CONFIG.starfield.speed * (0.4 + Math.random() * 0.6);
   }
 
   starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-  // Simple round glowing dot material using Canvas texture (independent of external images)
-  const starTexture = createCircleTexture('#ffffff');
-  const starMat = new THREE.PointsMaterial({
+  // Canvas-generated soft puff texture
+  const cloudTexture = createCircleTexture('#ffffff');
+  const cloudMat = new THREE.PointsMaterial({
     color: 0xffffff,
-    size: 0.8,
+    size: 26.0,           // Large volumetric cloud particles
     transparent: true,
-    opacity: 0.8,
-    map: starTexture,
-    blending: THREE.AdditiveBlending,
+    opacity: 0.6,         // Semi-transparent
+    map: cloudTexture,
+    blending: THREE.NormalBlending, // Standard alpha blend for day skies
     depthWrite: false
   });
 
-  starPoints = new THREE.Points(starGeometry, starMat);
+  starPoints = new THREE.Points(starGeometry, cloudMat);
   scene.add(starPoints);
 }
 
@@ -1130,7 +1125,7 @@ function startGame(mode = '3D') {
   cameraIntro.timer = 0;
 
   if (state.gameMode === '3D') {
-    scene.fog = new THREE.FogExp2(0x06060e, 0.0035);
+    scene.fog = new THREE.FogExp2(0x89c7f2, 0.0035);
     
     // Start camera far away and high up
     cameraIntro.startPos.set(0, 22, 50);
@@ -1514,15 +1509,19 @@ function handlePlayerMovement(dt) {
 function updateStarfield(dt) {
   const posArr = starGeometry.attributes.position.array;
   const warpMultiplier = state.mode === 'PLAYING' ? 1.0 : 0.25; // Slower in menus
+  const count = posArr.length / 3;
   
-  for (let i = 0; i < GAME_CONFIG.starfield.count; i++) {
-    // Access Z element (3rd element in 3-coord tuple)
+  for (let i = 0; i < count; i++) {
+    let xIdx = i * 3;
+    let yIdx = i * 3 + 1;
     let zIdx = i * 3 + 2;
     posArr[zIdx] += GAME_CONFIG.starfield.speed * warpMultiplier * dt;
     
-    // If star flies past camera viewport, recycle it to far back tunnel
-    if (posArr[zIdx] > 15) {
+    // Recycle cloud when it scrolls past camera
+    if (posArr[zIdx] > 20) {
       posArr[zIdx] = -GAME_CONFIG.starfield.depth;
+      posArr[xIdx] = (Math.random() - 0.5) * 200;
+      posArr[yIdx] = (Math.random() - 0.5) * 100;
     }
   }
   
