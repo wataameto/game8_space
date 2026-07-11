@@ -71,6 +71,8 @@ let cameraIntro = {
 // WebGL Global Objects
 let scene, camera, renderer, clock;
 let starPoints, starGeometry;
+let speedLines, speedLinesGeometry; // For 3D warp speed lines
+const speedLinesData = [];          // Speed lines tracking data
 
 // Game Object Groups
 let playerGroup;        // Contains cockpit, wings, engines, lights
@@ -651,6 +653,7 @@ function initScene() {
 
   // Build cloud layer background instead of space stars
   buildCloudfield();
+  buildSpeedLines();
   
   // Set up resize listener
   window.addEventListener('resize', onWindowResize);
@@ -725,6 +728,141 @@ function buildCloudfield() {
 
   starPoints = new THREE.Points(starGeometry, cloudMat);
   scene.add(starPoints);
+}
+
+/**
+ * Builds the warp speed lines for 3D mode
+ */
+function buildSpeedLines() {
+  const count = 35; // Number of speed lines
+  const positions = new Float32Array(count * 6); // 2 vertices per line (start + end)
+  
+  for (let i = 0; i < count; i++) {
+    const x = (Math.random() - 0.5) * 22; // Tunnel surrounding the center
+    const y = (Math.random() - 0.5) * 14;
+    const z = -Math.random() * 180;
+    const length = 6 + Math.random() * 12; // Length of the line segment
+    
+    const idx = i * 6;
+    positions[idx] = x;
+    positions[idx + 1] = y;
+    positions[idx + 2] = z;
+    
+    positions[idx + 3] = x;
+    positions[idx + 4] = y;
+    positions[idx + 5] = z - length;
+    
+    speedLinesData.push({
+      x, y, z, length,
+      speed: 180 + Math.random() * 100 // High scrolling speed
+    });
+  }
+  
+  speedLinesGeometry = new THREE.BufferGeometry();
+  speedLinesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  
+  const mat = new THREE.LineBasicMaterial({
+    color: 0xa8f5ff,
+    transparent: true,
+    opacity: 0.45,
+    blending: THREE.AdditiveBlending
+  });
+  
+  speedLines = new THREE.LineSegments(speedLinesGeometry, mat);
+  scene.add(speedLines);
+}
+
+/**
+ * Scroll speed lines towards the camera in 3D mode
+ */
+function updateSpeedLines(dt) {
+  if (!speedLinesGeometry || !speedLines) return;
+  
+  // Speed lines are active only when playing in 3D mode
+  const isVisible = state.mode === 'PLAYING' && state.gameMode === '3D';
+  speedLines.visible = isVisible;
+  if (!isVisible) return;
+  
+  const posArr = speedLinesGeometry.attributes.position.array;
+  
+  for (let i = 0; i < speedLinesData.length; i++) {
+    const data = speedLinesData[i];
+    
+    // Move lines forward
+    data.z += data.speed * dt;
+    
+    // Recycle line if it goes past camera
+    if (data.z > 20) {
+      data.z = -180 - Math.random() * 50;
+      data.x = (Math.random() - 0.5) * 22;
+      data.y = (Math.random() - 0.5) * 14;
+      data.speed = 180 + Math.random() * 100;
+    }
+    
+    const idx = i * 6;
+    // Start vertex
+    posArr[idx] = data.x;
+    posArr[idx + 1] = data.y;
+    posArr[idx + 2] = data.z;
+    
+    // End vertex (stretched backward in space)
+    posArr[idx + 3] = data.x;
+    posArr[idx + 4] = data.y;
+    posArr[idx + 5] = data.z - data.length;
+  }
+  
+  speedLinesGeometry.attributes.position.needsUpdate = true;
+}
+
+/**
+ * Dynamic Camera Roll & Target Lag Follow for immersive flight feel
+ */
+function updateCamera(dt) {
+  if (!playerGroup || cameraIntro.active) return;
+  
+  if (state.gameMode === '3D') {
+    // 1. Dynamic Camera Position Tracking (lerping positions)
+    const targetCamX = playerGroup.position.x * 0.28;
+    const targetCamY = playerGroup.position.y * 0.22;
+    const targetCamZ = 15.0 + Math.abs(playerGroup.position.x) * 0.12; // Zoom out slightly at screen edges
+    
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetCamX, 4.5 * dt);
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetCamY, 4.5 * dt);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCamZ, 4.0 * dt);
+    
+    // 2. Dynamic Camera Rotation (slerping orientation to track player + rolling)
+    const lookTarget = new THREE.Vector3(
+      playerGroup.position.x * 0.85,
+      playerGroup.position.y * 0.85,
+      playerGroup.position.z - 4 // Target point slightly in front of ship
+    );
+    
+    // Construct orientation matrix looking at target
+    const tempMatrix = new THREE.Matrix4();
+    tempMatrix.lookAt(camera.position, lookTarget, new THREE.Vector3(0, 1, 0));
+    
+    const targetQuat = new THREE.Quaternion();
+    targetQuat.setFromRotationMatrix(tempMatrix);
+    
+    // Smoothly slerp current quaternion to target quaternion
+    camera.quaternion.slerp(targetQuat, 3.8 * dt);
+    
+    // Apply banking roll (rotation.z) over the slerped orientation
+    const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+    euler.z = THREE.MathUtils.lerp(euler.z, playerGroup.rotation.z * 0.22, 4.0 * dt);
+    camera.quaternion.setFromEuler(euler);
+    
+  } else {
+    // 2D Mode camera lag following (look down from above)
+    const targetCamX = playerGroup.position.x * 0.35;
+    const targetCamZ = -5.0 + (playerGroup.position.z + 5) * 0.35;
+    
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetCamX, 4.5 * dt);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCamZ, 4.5 * dt);
+    
+    // Ensure rotation remains perfectly looking down
+    camera.rotation.set(-Math.PI / 2, 0, 0);
+  }
 }
 
 /**
@@ -1468,6 +1606,8 @@ function animate() {
 
   // Universal Updates running regardless of game mode
   updateStarfield(dt);
+  updateSpeedLines(dt);
+  updateCamera(dt);
   updateLasers(dt);
   updateEnemies(dt);
   updateEnemyProjectiles(dt); // Run enemy bullet movements & hits
