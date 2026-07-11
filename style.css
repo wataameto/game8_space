@@ -2,7 +2,7 @@
    FUTURISTIC NEON SF INTERFACE - STYLE SYSTEM
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Quicksand:wght@500;700&family=Nunito:wght@400;700;900&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
 
 :root {
   --color-cyan: #00f0ff;
@@ -18,7 +18,8 @@
   --color-bg-dark: #06060e;
   --color-panel-bg: rgba(10, 11, 24, 0.75);
   
-  --font-display: 'Orbitron', -apple-system, sans-serif;
+  /* Soft fonts for rounded visual style */
+  --font-display: 'Quicksand', 'Nunito', -apple-system, sans-serif;
   --font-mono: 'Share Tech Mono', monospace;
   
   --neon-border-cyan: 0 0 10px var(--color-cyan-glow), inset 0 0 10px var(--color-cyan-glow);
@@ -236,7 +237,8 @@ body, html {
   width: 100%;
   height: 100%;
   z-index: 20;
-  background: radial-gradient(circle, rgba(15, 16, 35, 0.8) 0%, rgba(5, 5, 12, 0.95) 100%);
+  /* Pastel sky transition overlay to blend with the live blue sky and clouds behind */
+  background: radial-gradient(circle, rgba(235, 245, 255, 0.4) 0%, rgba(195, 218, 245, 0.65) 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -252,13 +254,16 @@ body, html {
 }
 
 .menu-panel {
-  max-width: 500px;
+  max-width: 520px;
   width: 90%;
-  background: rgba(10, 11, 24, 0.93);
-  border: 2px solid var(--color-cyan);
-  box-shadow: var(--neon-border-cyan), 0 10px 30px rgba(0, 0, 0, 0.8);
-  border-radius: 16px;
-  padding: 40px;
+  /* Fluffy white cloud-glass panel */
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 16px 48px rgba(35, 65, 95, 0.08), inset 0 0 20px rgba(255, 255, 255, 0.35);
+  border-radius: 28px; /* Softer, highly rounded corners */
+  padding: 42px 45px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -271,46 +276,51 @@ body, html {
   transform: translateY(0);
 }
 
-/* Neon Text Styles */
+/* Soft Future Text Styles */
 .title-cyber {
-  font-size: 3rem;
-  font-weight: 900;
+  font-family: 'Comfortaa', var(--font-display);
+  font-size: 2.8rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 6px;
-  margin-bottom: 10px;
-  color: #ffffff;
-  text-shadow: 0 0 10px var(--color-cyan), 0 0 20px var(--color-cyan-glow), 0 0 40px rgba(0, 240, 255, 0.2);
-  animation: titleGlow 2.5s infinite alternate;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  /* Gorgeous blue-pink sunset gradient text */
+  background: linear-gradient(135deg, #1b73e8 0%, #d83b01 50%, #ff4b72 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(27, 115, 232, 0.15));
 }
 
 .subtitle-cyber {
-  font-family: var(--font-mono);
-  font-size: 0.9rem;
-  color: var(--color-yellow);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4a5d78; /* Muted tactical blue-grey */
   text-transform: uppercase;
-  letter-spacing: 4px;
-  margin-bottom: 30px;
-  text-shadow: 0 0 5px var(--color-yellow-glow);
+  letter-spacing: 6px;
+  margin-bottom: 25px;
+  text-shadow: none;
 }
 
-/* Cyber Button */
+/* Soft Gradient Button */
 .btn-cyber {
   font-family: var(--font-display);
-  font-weight: bold;
-  font-size: 1.1rem;
+  font-weight: 700;
+  font-size: 1.0rem;
   text-transform: uppercase;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   color: #ffffff;
-  background: transparent;
-  border: 1px solid var(--color-cyan);
-  padding: 15px 40px;
-  border-radius: 4px;
+  /* Beautiful soft blue sunset gradient */
+  background: linear-gradient(135deg, #1b73e8 0%, #00a2ff 100%);
+  border: none;
+  padding: 14px 35px;
+  border-radius: 30px; /* Completely rounded pill button */
   cursor: pointer;
   position: relative;
   z-index: 999;
   overflow: hidden;
-  transition: all 0.3s;
-  box-shadow: var(--neon-border-cyan);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 24px rgba(27, 115, 232, 0.3);
   margin-top: 10px;
   margin-bottom: 20px;
 }
@@ -322,14 +332,13 @@ body, html {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
   transition: all 0.5s;
 }
 
 .btn-cyber:hover {
-  background: rgba(0, 240, 255, 0.1);
-  box-shadow: 0 0 20px var(--color-cyan), inset 0 0 10px var(--color-cyan);
-  text-shadow: 0 0 5px #ffffff;
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 30px rgba(27, 115, 232, 0.45);
 }
 
 .btn-cyber:hover::before {
@@ -337,7 +346,7 @@ body, html {
 }
 
 .btn-cyber:active {
-  transform: scale(0.95);
+  transform: translateY(-1px) scale(0.97);
 }
 
 /* Mode Selection Layout */
@@ -357,42 +366,42 @@ body, html {
   min-width: 180px;
 }
 
-/* 2D Cyber Button variant */
+/* 2D Soft Button variant */
 .btn-cyber.btn-2d {
-  border-color: var(--color-purple);
-  box-shadow: var(--neon-border-purple);
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.3);
 }
 
 .btn-cyber.btn-2d::before {
-  background: linear-gradient(90deg, transparent, rgba(189, 0, 255, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
 }
 
 .btn-cyber.btn-2d:hover {
-  background: rgba(189, 0, 255, 0.1);
-  box-shadow: 0 0 20px var(--color-purple), inset 0 0 10px var(--color-purple);
-  text-shadow: 0 0 5px #ffffff;
+  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.45);
 }
 
 /* Custom layout for GameOver Screen */
 #gameover-screen .menu-panel {
-  border-color: var(--color-magenta);
-  box-shadow: var(--neon-border-magenta), 0 10px 30px rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(255, 0, 85, 0.25);
+  box-shadow: 0 16px 48px rgba(255, 0, 85, 0.05), inset 0 0 20px rgba(255, 255, 255, 0.4);
 }
 
 #gameover-screen .title-cyber {
-  color: #ffffff;
-  text-shadow: 0 0 10px var(--color-magenta), 0 0 20px var(--color-magenta-glow);
-  animation: titleGlowMagenta 1.5s infinite alternate;
+  background: linear-gradient(135deg, #d83b01 0%, #ff0055 50%, #ff6b8b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(255, 0, 85, 0.15));
 }
 
 #gameover-screen .btn-cyber {
-  border-color: var(--color-magenta);
-  box-shadow: var(--neon-border-magenta);
+  background: linear-gradient(135deg, #e01b5d 0%, #ff527b 100%);
+  box-shadow: 0 8px 24px rgba(255, 0, 85, 0.28);
+  border: none;
 }
 
 #gameover-screen .btn-cyber:hover {
-  background: rgba(255, 0, 85, 0.15);
-  box-shadow: 0 0 20px var(--color-magenta), inset 0 0 10px var(--color-magenta);
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 30px rgba(255, 0, 85, 0.45);
 }
 
 /* Stats list in menus */
@@ -408,64 +417,70 @@ body, html {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
   padding-bottom: 8px;
 }
 
 .stat-label {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: #556885; /* Soft slate-grey */
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
 }
 
 .stat-value {
-  font-family: var(--font-mono);
-  font-size: 1.3rem;
-  font-weight: bold;
-  color: var(--color-yellow);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1b73e8; /* High-contrast blue */
 }
 
 /* Instructions / Controls Info Graph */
 .controls-card {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  padding: 15px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px; /* Highly rounded corners */
+  padding: 20px;
   width: 100%;
   margin-top: 10px;
   text-align: left;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
 }
 
 .controls-card h3 {
   font-size: 0.85rem;
-  color: var(--color-cyan);
-  margin-bottom: 10px;
+  color: #1b73e8; /* Soft blue instead of cyber cyan */
+  margin-bottom: 12px;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
+  font-weight: 700;
 }
 
 .controls-card ul {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.8);
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #4a5568; /* Darker soft slate grey */
 }
 
 .controls-card li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 
 .key-cap {
-  font-family: var(--font-mono);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 2px 8px;
-  border-radius: 4px;
-  color: var(--color-cyan);
+  font-family: var(--font-display); /* Use rounded font display */
+  font-weight: 700;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 4px 10px;
+  border-radius: 8px;
+  color: #1b73e8;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.04), inset 0 -2px 0 rgba(0, 0, 0, 0.08); /* Neumorphic feel */
 }
 
 /* Animations */
