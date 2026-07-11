@@ -20,13 +20,8 @@
     <div id="hud" aria-label="ヘッドアップディスプレイ">
       <!-- Top HUD Panel: Shields, Score, Weapon info -->
       <header class="hud-top">
-        <!-- Shield Integrity Bar -->
-        <div class="hud-panel hud-shield-panel">
-          <div id="shield-label" class="hud-label">SHIELD INTEGRITY</div>
-          <div class="shield-container" aria-labelledby="shield-label">
-            <div id="hud-shield-bar" class="shield-bar" style="width: 100%;"></div>
-          </div>
-        </div>
+        <!-- Quit to Title Button -->
+        <button id="btn-hud-title" class="hud-btn-cyber" type="button">TITLE</button>
 
         <!-- Current Score & High Score -->
         <div class="hud-panel hud-score-panel">
@@ -43,8 +38,13 @@
           </div>
         </div>
 
-        <!-- Quit to Title Button -->
-        <button id="btn-hud-title" class="hud-btn-cyber" type="button">TITLE</button>
+        <!-- Shield Integrity Bar -->
+        <div class="hud-panel hud-shield-panel">
+          <div id="shield-label" class="hud-label">SHIELD INTEGRITY</div>
+          <div class="shield-container" aria-labelledby="shield-label">
+            <div id="hud-shield-bar" class="shield-bar" style="width: 100%;"></div>
+          </div>
+        </div>
       </header>
 
       <!-- Sight / Crosshair in the center of the screen -->
