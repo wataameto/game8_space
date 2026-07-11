@@ -893,47 +893,67 @@ function fireLaser() {
   const laserGeom = new THREE.CylinderGeometry(0.12, 0.12, 4.0, 6);
   laserGeom.rotateX(Math.PI / 2);
 
-  // Weapon systems levels:
-  // LV1: Single center shot
-  // LV2: Dual side-wing shots
-  // LV3: Triple shots (center + dual side spread)
-  
   const shipPos = playerGroup.position;
   const launchY = state.gameMode === '3D' ? shipPos.y : 0;
+  
+  // Get ship current yaw (always 0 in 3D mode)
+  const shipYaw = playerGroup.rotation.y;
+  const upAxis = new THREE.Vector3(0, 1, 0);
 
   if (state.weaponLevel === 1 || state.weaponLevel === 3) {
-    // Center shot
+    // Center shot: offset (0, 0, -2) in local space
+    const localOffset = new THREE.Vector3(0, state.gameMode === '3D' ? 0.1 : 0, -2);
+    localOffset.applyAxisAngle(upAxis, shipYaw);
+
     const laserMesh = new THREE.Mesh(laserGeom, laserMat);
-    laserMesh.position.set(shipPos.x, launchY + (state.gameMode === '3D' ? 0.1 : 0), shipPos.z - 2);
+    laserMesh.position.copy(shipPos).add(localOffset);
+    laserMesh.rotation.y = shipYaw; // Align cylinder mesh rotation
     scene.add(laserMesh);
     
+    const velocity = new THREE.Vector3(0, 0, -GAME_CONFIG.laser.speed);
+    velocity.applyAxisAngle(upAxis, shipYaw);
+
     lasers.push({
       mesh: laserMesh,
-      velocity: new THREE.Vector3(0, 0, -GAME_CONFIG.laser.speed)
+      velocity: velocity
     });
   }
 
   if (state.weaponLevel >= 2) {
-    // Left Cannon Bolt
+    // Left Cannon local offset
+    const leftOffset = new THREE.Vector3(-2.8, state.gameMode === '3D' ? -0.1 : 0, -0.5);
+    leftOffset.applyAxisAngle(upAxis, shipYaw);
+    
     const leftLaser = new THREE.Mesh(laserGeom, laserMat);
-    leftLaser.position.set(shipPos.x - 2.8, launchY - (state.gameMode === '3D' ? 0.1 : 0), shipPos.z - 0.5);
+    leftLaser.position.copy(shipPos).add(leftOffset);
+    leftLaser.rotation.y = shipYaw;
     scene.add(leftLaser);
     
-    // Right Cannon Bolt
+    // Right Cannon local offset
+    const rightOffset = new THREE.Vector3(2.8, state.gameMode === '3D' ? -0.1 : 0, -0.5);
+    rightOffset.applyAxisAngle(upAxis, shipYaw);
+    
     const rightLaser = new THREE.Mesh(laserGeom, laserMat);
-    rightLaser.position.set(shipPos.x + 2.8, launchY - (state.gameMode === '3D' ? 0.1 : 0), shipPos.z - 0.5);
+    rightLaser.position.copy(shipPos).add(rightOffset);
+    rightLaser.rotation.y = shipYaw;
     scene.add(rightLaser);
 
     // Spread slightly outward in LV3
     const spreadX = state.weaponLevel === 3 ? 6.0 : 0.0;
     
+    const leftVelocity = new THREE.Vector3(-spreadX, 0, -GAME_CONFIG.laser.speed);
+    leftVelocity.applyAxisAngle(upAxis, shipYaw);
+    
+    const rightVelocity = new THREE.Vector3(spreadX, 0, -GAME_CONFIG.laser.speed);
+    rightVelocity.applyAxisAngle(upAxis, shipYaw);
+
     lasers.push({
       mesh: leftLaser,
-      velocity: new THREE.Vector3(-spreadX, 0, -GAME_CONFIG.laser.speed)
+      velocity: leftVelocity
     });
     lasers.push({
       mesh: rightLaser,
-      velocity: new THREE.Vector3(spreadX, 0, -GAME_CONFIG.laser.speed)
+      velocity: rightVelocity
     });
   }
 }
@@ -1330,6 +1350,15 @@ function animate() {
 
   // Render Scene
   renderer.render(scene, camera);
+
+  // Expose debug hooks for automated tests
+  window.gameDebug = {
+    playerGroup,
+    lasers,
+    enemies,
+    state,
+    keys
+  };
 }
 
 /**
@@ -1353,7 +1382,6 @@ function handlePlayerMovement(dt) {
       const newX = THREE.MathUtils.lerp(playerGroup.position.x, targetX, lerpFactor);
       const newY = THREE.MathUtils.lerp(playerGroup.position.y, targetY, lerpFactor);
       
-      // Compute delta move for tilting calculations
       moveX = (newX - playerGroup.position.x) / (GAME_CONFIG.player.speed * dt || 0.001);
       moveY = (newY - playerGroup.position.y) / (GAME_CONFIG.player.speed * dt || 0.001);
       
@@ -1367,8 +1395,19 @@ function handlePlayerMovement(dt) {
       const newX = THREE.MathUtils.lerp(playerGroup.position.x, targetX, lerpFactor);
       const newZ = THREE.MathUtils.lerp(playerGroup.position.z, targetZ, lerpFactor);
       
-      moveX = (newX - playerGroup.position.x) / (GAME_CONFIG.player.speed * dt || 0.001);
-      moveY = -(newZ - playerGroup.position.z) / (GAME_CONFIG.player.speed * dt || 0.001); // Z- moves forward
+      // Calculate movement vector direction for ship yaw facing angle
+      const dx = newX - playerGroup.position.x;
+      const dz = newZ - playerGroup.position.z;
+      const moveLen = Math.sqrt(dx * dx + dz * dz);
+      
+      if (moveLen > 0.015) {
+        // Point towards the finger/mouse drag direction smoothly
+        const targetAngle = Math.atan2(-dx, -dz);
+        playerGroup.rotation.y = THREE.MathUtils.lerp(playerGroup.rotation.y, targetAngle, 8.0 * dt);
+      }
+      
+      moveX = dx / (GAME_CONFIG.player.speed * dt || 0.001);
+      moveY = -dz / (GAME_CONFIG.player.speed * dt || 0.001);
       
       playerGroup.position.x = newX;
       playerGroup.position.z = newZ;
@@ -1395,13 +1434,25 @@ function handlePlayerMovement(dt) {
       playerGroup.position.y = Math.max(-GAME_CONFIG.player.rangeY, Math.min(GAME_CONFIG.player.rangeY, targetY));
       playerGroup.position.z = 0;
     } else {
-      // 2D Top-Down Mode: Move on XZ Plane, Y stays 0
-      const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
-      const targetZ = playerGroup.position.z - moveY * GAME_CONFIG.player.speed * dt; // W moves Z-, S moves Z+
+      // 2D Top-Down Mode
+      if (keys.Space) {
+        // Angled Firing active: Left/Right keys rotate target yaw direction (no sliding)
+        const rotateSpeed = 3.2; // Radians per second
+        playerGroup.rotation.y += -moveX * rotateSpeed * dt;
+        
+        // Forward/backward keyboard moves remain active
+        const targetZ = playerGroup.position.z - moveY * GAME_CONFIG.player.speed * dt;
+        playerGroup.position.z = Math.max(-25, Math.min(8, targetZ));
+        playerGroup.position.y = 0;
+      } else {
+        // Standard non-firing 2D movement
+        const targetX = playerGroup.position.x + moveX * GAME_CONFIG.player.speed * dt;
+        const targetZ = playerGroup.position.z - moveY * GAME_CONFIG.player.speed * dt;
 
-      playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
-      playerGroup.position.z = Math.max(-25, Math.min(8, targetZ));
-      playerGroup.position.y = 0;
+        playerGroup.position.x = Math.max(-GAME_CONFIG.player.rangeX, Math.min(GAME_CONFIG.player.rangeX, targetX));
+        playerGroup.position.z = Math.max(-25, Math.min(8, targetZ));
+        playerGroup.position.y = 0;
+      }
     }
   }
 
@@ -1419,13 +1470,27 @@ function handlePlayerMovement(dt) {
     const hoverOffset = Math.sin(performance.now() * 0.0035) * 0.15;
     playerGroup.position.y += hoverOffset * dt * 6;
   } else {
-    // 2D Tilt: Roll (Z rotation) when banking left/right. Yaw (Y rotation) slightly.
-    const targetRoll = -moveX * GAME_CONFIG.player.rollLimit * 0.8;
-    const targetYaw = moveX * 0.15;
+    // 2D Mode rotations
+    if (pointerControl.active) {
+      // Flat roll/pitch stability during pointer drag
+      playerGroup.rotation.z = THREE.MathUtils.lerp(playerGroup.rotation.z, 0, 8.0 * dt);
+      playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, 0, 8.0 * dt);
+    } else if (keys.Space) {
+      // Flat roll/pitch stability while rotating/firing
+      playerGroup.rotation.z = THREE.MathUtils.lerp(playerGroup.rotation.z, 0, GAME_CONFIG.player.lerpSpeed * dt);
+      playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, 0, GAME_CONFIG.player.lerpSpeed * dt);
+    } else {
+      // Standard movement banking angles
+      const targetRoll = -moveX * GAME_CONFIG.player.rollLimit * 0.8;
+      const targetYaw = moveX * 0.15;
 
-    playerGroup.rotation.z = THREE.MathUtils.lerp(playerGroup.rotation.z, targetRoll, GAME_CONFIG.player.lerpSpeed * dt);
-    playerGroup.rotation.y = THREE.MathUtils.lerp(playerGroup.rotation.y, targetYaw, GAME_CONFIG.player.lerpSpeed * dt);
-    playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, 0, GAME_CONFIG.player.lerpSpeed * dt);
+      playerGroup.rotation.z = THREE.MathUtils.lerp(playerGroup.rotation.z, targetRoll, GAME_CONFIG.player.lerpSpeed * dt);
+      playerGroup.rotation.x = THREE.MathUtils.lerp(playerGroup.rotation.x, 0, GAME_CONFIG.player.lerpSpeed * dt);
+      
+      // Auto-align back to center forward yaw (0) when not firing, plus current turn direction banking
+      const baseYaw = THREE.MathUtils.lerp(playerGroup.rotation.y, 0, 5.0 * dt);
+      playerGroup.rotation.y = baseYaw + targetYaw;
+    }
   }
 
   // Update dynamic fire plume particles behind jet nozzles
