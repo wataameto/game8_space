@@ -267,109 +267,188 @@ function playGameOverSound() {
 function createPlayerShip() {
   const group = new THREE.Group();
 
-  // Cockpit/Nose (Glowing glass canopy + metallic tip)
-  const canopyGeom = new THREE.ConeGeometry(0.7, 3, 8);
-  canopyGeom.rotateX(Math.PI / 2); // Orient forward
-  const canopyMat = new THREE.MeshStandardMaterial({
-    color: 0x00d8ff,
-    emissive: 0x004c80,
-    roughness: 0.1,
-    metalness: 0.9,
-    transparent: true,
-    opacity: 0.8
+  // Premium tactical materials
+  const bodyMetalMat = new THREE.MeshStandardMaterial({
+    color: 0x1a1e28,       // Sleek tactical titanium dark grey
+    metalness: 0.88,
+    roughness: 0.18
   });
-  const canopy = new THREE.Mesh(canopyGeom, canopyMat);
-  canopy.position.set(0, 0, -0.5);
-  group.add(canopy);
 
-  // Main fuselage / body structure
-  const bodyGeom = new THREE.CylinderGeometry(0.8, 0.4, 4, 8);
-  bodyGeom.rotateX(Math.PI / 2);
-  const metalMat = new THREE.MeshStandardMaterial({
-    color: 0x222530,
-    roughness: 0.4,
-    metalness: 0.8
+  const wingMetalMat = new THREE.MeshStandardMaterial({
+    color: 0x242936,       // Slightly lighter carbon-alloy for wing panels
+    metalness: 0.82,
+    roughness: 0.22
   });
-  const body = new THREE.Mesh(bodyGeom, metalMat);
-  body.position.set(0, 0, 1.2);
+
+  const canopyGlassMat = new THREE.MeshStandardMaterial({
+    color: 0x00f0ff,       // Cyan glowing energy canopy
+    emissive: 0x003e4d,
+    roughness: 0.05,
+    metalness: 0.95,
+    transparent: true,
+    opacity: 0.85
+  });
+
+  const neonCyanMat = new THREE.MeshBasicMaterial({
+    color: 0x00f0ff
+  });
+
+  const engineMetalMat = new THREE.MeshStandardMaterial({
+    color: 0x111216,
+    metalness: 0.92,
+    roughness: 0.28
+  });
+
+  const engineGlowMat = new THREE.MeshBasicMaterial({
+    color: 0x00f0ff
+  });
+
+  // 1. Main Fuselage (Tapered sleek cylinder body)
+  const bodyGeom = new THREE.CylinderGeometry(0.7, 0.45, 4.4, 10);
+  bodyGeom.rotateX(Math.PI / 2);
+  const body = new THREE.Mesh(bodyGeom, bodyMetalMat);
+  body.position.set(0, 0, 1.0);
   group.add(body);
 
-  // Wings (Left and Right)
-  const wingGeom = new THREE.BoxGeometry(6, 0.15, 2.5);
-  // Custom shear / angle for wings
-  const wingMat = new THREE.MeshStandardMaterial({
-    color: 0x3a3f55,
-    roughness: 0.5,
-    metalness: 0.7
-  });
-  const wings = new THREE.Mesh(wingGeom, wingMat);
-  wings.position.set(0, -0.1, 1.5);
-  group.add(wings);
+  // 2. Streamlined Canopy / Cockpit (Long glass canopy)
+  const canopyGeom = new THREE.SphereGeometry(0.55, 12, 12);
+  canopyGeom.scale(1.0, 0.7, 2.2); // Elongated cockpit shape
+  const canopy = new THREE.Mesh(canopyGeom, canopyGlassMat);
+  canopy.position.set(0, 0.2, -0.6);
+  group.add(canopy);
 
-  // Wing panels / stabilizers (Fins at wing tips pointing slightly up)
-  const leftFinGeom = new THREE.BoxGeometry(0.1, 1.2, 2);
-  const finMat = new THREE.MeshStandardMaterial({
-    color: 0x00f0ff,
-    emissive: 0x003f44,
-    metalness: 0.5
-  });
-  const leftFin = new THREE.Mesh(leftFinGeom, finMat);
-  leftFin.position.set(-3, 0.4, 1.5);
-  leftFin.rotation.z = -0.15;
+  // 3. Nose Cone / Pitot Tube (Sharp pointy front tip)
+  const noseGeom = new THREE.ConeGeometry(0.15, 1.2, 6);
+  noseGeom.rotateX(Math.PI / 2);
+  const nose = new THREE.Mesh(noseGeom, engineMetalMat);
+  nose.position.set(0, 0, -2.5);
+  group.add(nose);
+
+  // 4. Custom Polygon Wings - Swept Forward/Backward Style (Left/Right)
+  // Building sleek polygonal geometry using vertices
+  const leftWingGeom = new THREE.BufferGeometry();
+  const vertices = new Float32Array([
+    // x, y, z
+    0, 0, 0,          // root front
+    0, 0, 2.2,        // root back
+    -3.2, -0.15, 1.8, // tip back
+    -3.2, -0.15, 1.2, // tip front
+  ]);
+  const indices = [
+    0, 1, 2,
+    0, 2, 3
+  ];
+  leftWingGeom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  leftWingGeom.setIndex(indices);
+  leftWingGeom.computeVertexNormals();
+
+  const leftWing = new THREE.Mesh(leftWingGeom, wingMetalMat);
+  leftWing.position.set(0, -0.05, 0.8);
+  group.add(leftWing);
+
+  // Mirror Right Wing
+  const rightWingGeom = new THREE.BufferGeometry();
+  const rVertices = new Float32Array([
+    0, 0, 0,
+    0, 0, 2.2,
+    3.2, -0.15, 1.8,
+    3.2, -0.15, 1.2,
+  ]);
+  rightWingGeom.setAttribute('position', new THREE.BufferAttribute(rVertices, 3));
+  rightWingGeom.setIndex(indices);
+  rightWingGeom.computeVertexNormals();
+
+  const rightWing = new THREE.Mesh(rightWingGeom, wingMetalMat);
+  rightWing.position.set(0, -0.05, 0.8);
+  group.add(rightWing);
+
+  // 5. Neon Energy Blades (Thin bright cyans at wing edges)
+  const leftBladeGeom = new THREE.BoxGeometry(0.06, 0.06, 1.5);
+  const leftBlade = new THREE.Mesh(leftBladeGeom, neonCyanMat);
+  leftBlade.position.set(-3.2, -0.15, 2.3);
+  leftBlade.rotation.y = 0.1;
+  group.add(leftBlade);
+
+  const rightBlade = leftBlade.clone();
+  rightBlade.position.x = 3.2;
+  rightBlade.rotation.y = -0.1;
+  group.add(rightBlade);
+
+  // 6. Canards (Small front stabilizer wings on the nose)
+  const leftCanardGeom = new THREE.BoxGeometry(1.0, 0.04, 0.5);
+  const leftCanard = new THREE.Mesh(leftCanardGeom, wingMetalMat);
+  leftCanard.position.set(-0.9, 0.1, -1.0);
+  leftCanard.rotation.y = 0.3; // Angle backward
+  group.add(leftCanard);
+
+  const rightCanard = leftCanard.clone();
+  rightCanard.position.x = 0.9;
+  rightCanard.rotation.y = -0.3;
+  group.add(rightCanard);
+
+  // 7. Slanted Stabilizer Fins (Outward slanted wingtips)
+  const leftFinGeom = new THREE.BoxGeometry(0.12, 1.3, 1.4);
+  const leftFin = new THREE.Mesh(leftFinGeom, bodyMetalMat);
+  leftFin.position.set(-3.2, 0.45, 2.1);
+  leftFin.rotation.z = -0.22;
   group.add(leftFin);
 
   const rightFin = leftFin.clone();
-  rightFin.position.x = 3;
-  rightFin.rotation.z = 0.15;
+  rightFin.position.x = 3.2;
+  rightFin.rotation.z = 0.22;
   group.add(rightFin);
 
-  // Laser cannons on wingtips
-  const cannonGeom = new THREE.CylinderGeometry(0.1, 0.1, 1.5, 6);
-  cannonGeom.rotateX(Math.PI / 2);
-  const cannonMat = new THREE.MeshStandardMaterial({ color: 0x111115, metalness: 0.9, roughness: 0.1 });
+  // 8. Twin Engine Nozzles (Futuristic dual thrusters)
+  const nozzleGeom = new THREE.CylinderGeometry(0.38, 0.44, 0.8, 8);
+  nozzleGeom.rotateX(Math.PI / 2);
   
-  const leftCannon = new THREE.Mesh(cannonGeom, cannonMat);
-  leftCannon.position.set(-2.8, -0.1, 0.5);
+  const leftNozzle = new THREE.Mesh(nozzleGeom, engineMetalMat);
+  leftNozzle.position.set(-0.6, 0, 3.2);
+  group.add(leftNozzle);
+
+  const rightNozzle = leftNozzle.clone();
+  rightNozzle.position.x = 0.6;
+  group.add(rightNozzle);
+
+  // 9. Twin Engine Inner Glow
+  const glowGeom = new THREE.CylinderGeometry(0.3, 0.3, 0.15, 8);
+  glowGeom.rotateX(Math.PI / 2);
+  
+  const leftGlow = new THREE.Mesh(glowGeom, engineGlowMat);
+  leftGlow.position.set(-0.6, 0, 3.5);
+  group.add(leftGlow);
+
+  const rightGlow = leftGlow.clone();
+  rightGlow.position.x = 0.6;
+  group.add(rightGlow);
+
+  // 10. Heavy Cannon Barrels on Wing Join (Gun barrel details)
+  const cannonGeom = new THREE.CylinderGeometry(0.14, 0.14, 1.8, 6);
+  cannonGeom.rotateX(Math.PI / 2);
+  
+  const leftCannon = new THREE.Mesh(cannonGeom, engineMetalMat);
+  leftCannon.position.set(-2.8, -0.15, 1.0);
   group.add(leftCannon);
 
   const rightCannon = leftCannon.clone();
   rightCannon.position.x = 2.8;
   group.add(rightCannon);
 
-  // Laser Cannon Tips (Cyber Cyan Emissive indicators)
-  const tipGeom = new THREE.CylinderGeometry(0.12, 0.08, 0.3, 6);
+  // 11. Cannon Tips (Glow tips)
+  const tipGeom = new THREE.CylinderGeometry(0.16, 0.1, 0.3, 6);
   tipGeom.rotateX(Math.PI / 2);
-  const tipMat = new THREE.MeshStandardMaterial({
-    color: 0x00f0ff,
-    emissive: 0x00f0ff,
-    emissiveIntensity: 1.5
-  });
-  const leftTip = new THREE.Mesh(tipGeom, tipMat);
-  leftTip.position.set(-2.8, -0.1, -0.3);
+  
+  const leftTip = new THREE.Mesh(tipGeom, canopyGlassMat);
+  leftTip.position.set(-2.8, -0.15, 0.0);
   group.add(leftTip);
 
   const rightTip = leftTip.clone();
   rightTip.position.x = 2.8;
   group.add(rightTip);
 
-  // Main Thruster Node (Behind the body)
-  const thrusterGeom = new THREE.CylinderGeometry(0.5, 0.6, 0.8, 8);
-  thrusterGeom.rotateX(Math.PI / 2);
-  const thruster = new THREE.Mesh(thrusterGeom, cannonMat);
-  thruster.position.set(0, 0, 3.4);
-  group.add(thruster);
-
-  // Thruster Glow (Inside)
-  const glowGeom = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 8);
-  glowGeom.rotateX(Math.PI / 2);
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-  const thrusterGlow = new THREE.Mesh(glowGeom, glowMat);
-  thrusterGlow.position.set(0, 0, 3.8);
-  group.add(thrusterGlow);
-
   // Engine PointLight attached to player to project glow on nearby objects
-  playerEngineLight = new THREE.PointLight(0x00f0ff, 3, 10);
-  playerEngineLight.position.set(0, 0, 4.2);
+  playerEngineLight = new THREE.PointLight(0x00f0ff, 2.5, 15);
+  playerEngineLight.position.set(0, 0, 4.0);
   group.add(playerEngineLight);
 
   return group;
@@ -750,10 +829,13 @@ function spawnExplosion(position, colorHex, particleCount = 35) {
 function updateEngineFlame(dt, playerPos) {
   // Spawn rate limit
   if (Math.random() < 0.35 && state.mode === 'PLAYING') {
-    const size = 0.5 + Math.random() * 0.5;
+    const is2D = state.gameMode === '2D';
+    const scale = is2D ? 0.6 : 1.0;
+    
+    const size = (0.45 + Math.random() * 0.45) * scale;
     const geom = new THREE.BoxGeometry(size, size, size);
     
-    // Alternate thruster colors: Cyan glow
+    // Cyan engine glow trail
     const mat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
@@ -763,11 +845,15 @@ function updateEngineFlame(dt, playerPos) {
     
     const flame = new THREE.Mesh(geom, mat);
     
-    // Spawn just behind engine nozzle
+    // Select left or right nozzle offset based on twin-engine design
+    const sideX = Math.random() < 0.5 ? -0.6 : 0.6;
+    const offsetZ = 3.3; // Local Z offset to nozzles
+    
+    // Spawn just behind nozzle tips
     flame.position.set(
-      playerPos.x + (Math.random() - 0.5) * 0.3,
-      playerPos.y + (Math.random() - 0.5) * 0.3,
-      playerPos.z + 3.9
+      playerPos.x + sideX * scale + (Math.random() - 0.5) * 0.12 * scale,
+      playerPos.y + (Math.random() - 0.5) * 0.12 * scale,
+      playerPos.z + offsetZ * scale
     );
     
     scene.add(flame);
