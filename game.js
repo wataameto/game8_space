@@ -578,33 +578,67 @@ function initScene() {
 }
 
 /**
+ * Helper to generate canvas texture of a fluffy volumetric cloud puff
+ */
+function createCloudTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.clearRect(0, 0, 128, 128);
+
+  // Generate 6 overlapping soft circles to make a fluffy, organic cloud shape
+  const numPuffs = 6;
+  for (let i = 0; i < numPuffs; i++) {
+    const angle = (i / numPuffs) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+    const dist = 8 + Math.random() * 12;
+    const x = 64 + Math.cos(angle) * dist;
+    const y = 64 + Math.sin(angle) * dist;
+    const radius = 24 + Math.random() * 12;
+
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+    grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.25)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+/**
  * Builds the warping volumetric cloud background
  */
 function buildCloudfield() {
-  const count = 180; // Volumetric clouds count
+  const count = 90; // Lower count, larger volumetric size
   starGeometry = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
   const velocities = new Float32Array(count);
 
   for (let i = 0; i < count; i++) {
-    // Spread clouds widely in the sky (X: -100 to 100, Y: -50 to 50, Z: -depth to 0)
-    positions[i * 3] = (Math.random() - 0.5) * 200;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
+    // Spread clouds widely in the sky (X: -260 to 260, Y: -120 to 120, Z: -depth to 0)
+    positions[i * 3] = (Math.random() - 0.5) * 520;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 240;
     positions[i * 3 + 2] = -Math.random() * GAME_CONFIG.starfield.depth;
     
     // Cloud scroll speed
-    velocities[i] = GAME_CONFIG.starfield.speed * (0.4 + Math.random() * 0.6);
+    velocities[i] = GAME_CONFIG.starfield.speed * (0.35 + Math.random() * 0.65);
   }
 
   starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-  // Canvas-generated soft puff texture
-  const cloudTexture = createCircleTexture('#ffffff');
+  // Canvas-generated fluffy puff texture
+  const cloudTexture = createCloudTexture();
   const cloudMat = new THREE.PointsMaterial({
     color: 0xffffff,
-    size: 26.0,           // Large volumetric cloud particles
+    size: 45.0,           // Massive scale for soft, realistic puff shapes
     transparent: true,
-    opacity: 0.6,         // Semi-transparent
+    opacity: 0.38,        // Soft transparency blending beautifully into sky
     map: cloudTexture,
     blending: THREE.NormalBlending, // Standard alpha blend for day skies
     depthWrite: false
